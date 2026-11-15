@@ -1,3 +1,4 @@
 #include "player_config_resource.h"
 
 IDI_APP_ICON ICON "../assets/bhd_player_config.ico"
+IDR_CROSSHAIR_PREVIEW RCDATA "../assets/crosshair_background_1280x720.jpg"

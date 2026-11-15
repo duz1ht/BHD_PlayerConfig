@@ -6,6 +6,7 @@
 #include <array>
 
 #include "player_config_resource.h"
+#include "crosshair_editor.h"
 
 namespace {
 constexpr wchar_t kWindowClass[] = L"BhdPlayerConfigWindow";
@@ -63,6 +64,7 @@ constexpr int kCategoryGap = 12;
 
 HWND gTab = nullptr;
 HWND gSettingsPage = nullptr;
+HWND gCrosshairPage = nullptr;
 HWND gPlaceholderPage = nullptr;
 HWND gStatus = nullptr;
 HFONT gFont = nullptr;
@@ -138,11 +140,21 @@ void SaveSettings(HWND owner) {
 
 void ShowSelectedTab() {
     const int selected = TabCtrl_GetCurSel(gTab);
+    HWND window = GetParent(gTab);
     ShowWindow(gSettingsPage, selected == 0 ? SW_SHOW : SW_HIDE);
-    ShowWindow(gPlaceholderPage, selected == 0 ? SW_HIDE : SW_SHOW);
-    if (selected > 0) {
+    ShowWindow(gCrosshairPage, selected == 1 ? SW_SHOW : SW_HIDE);
+    ShowWindow(gPlaceholderPage, selected >= 2 ? SW_SHOW : SW_HIDE);
+    ShowWindow(gStatus, selected == 0 ? SW_SHOW : SW_HIDE);
+    ShowWindow(GetDlgItem(window, kDefaultsId), selected == 0 ? SW_SHOW : SW_HIDE);
+    ShowWindow(GetDlgItem(window, kReloadId), selected <= 1 ? SW_SHOW : SW_HIDE);
+    ShowWindow(GetDlgItem(window, kSaveId), selected <= 1 ? SW_SHOW : SW_HIDE);
+    SetWindowTextW(GetDlgItem(window, kReloadId),
+                   selected == 1 ? L"Load Current Crosshair" : L"Reload");
+    SetWindowTextW(GetDlgItem(window, kSaveId),
+                   selected == 1 ? L"Apply Crosshair" : L"Save");
+    if (selected >= 2) {
         wchar_t message[256] = {};
-        const wchar_t* name = selected == 1 ? L"Crosshair" : selected == 2 ? L"HUD" : L"Fonts";
+        const wchar_t* name = selected == 2 ? L"HUD" : L"Fonts";
         wsprintfW(message, L"%s settings will appear here when those features are added.", name);
         SetWindowTextW(GetDlgItem(gPlaceholderPage, 200), message);
     }
@@ -163,13 +175,18 @@ void Layout(HWND window) {
     MapWindowPoints(gTab, window, reinterpret_cast<POINT*>(&pageRect), 2);
     MoveWindow(gSettingsPage, pageRect.left, pageRect.top,
                pageRect.right - pageRect.left, pageRect.bottom - pageRect.top, TRUE);
+    MoveWindow(gCrosshairPage, pageRect.left, pageRect.top,
+               pageRect.right - pageRect.left, pageRect.bottom - pageRect.top, TRUE);
     MoveWindow(gPlaceholderPage, pageRect.left, pageRect.top,
                pageRect.right - pageRect.left, pageRect.bottom - pageRect.top, TRUE);
 
-    MoveWindow(GetDlgItem(window, kSaveId), client.right - margin - buttonWidth, bottomY,
-               buttonWidth, buttonHeight, TRUE);
-    MoveWindow(GetDlgItem(window, kReloadId), client.right - margin * 2 - buttonWidth * 2,
-               bottomY, buttonWidth, buttonHeight, TRUE);
+    const bool crosshair = TabCtrl_GetCurSel(gTab) == 1;
+    const int saveWidth = crosshair ? 120 : buttonWidth;
+    const int reloadWidth = crosshair ? 170 : buttonWidth;
+    MoveWindow(GetDlgItem(window, kSaveId), client.right - margin - saveWidth, bottomY,
+               saveWidth, buttonHeight, TRUE);
+    MoveWindow(GetDlgItem(window, kReloadId), client.right - margin * 2 - saveWidth - reloadWidth,
+               bottomY, reloadWidth, buttonHeight, TRUE);
     MoveWindow(GetDlgItem(window, kDefaultsId), client.right - margin * 3 - buttonWidth * 3,
                bottomY, buttonWidth, buttonHeight, TRUE);
     MoveWindow(gStatus, margin, bottomY + 6,
@@ -353,6 +370,7 @@ LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
             }
             gSettingsPage = MakeControl(window, L"STATIC", L"", WS_VSCROLL,
                                         0, 0, 0, 0, 0);
+            gCrosshairPage = crosshair_editor::Create(window, gFont, gBoldFont);
             gPlaceholderPage = MakeControl(window, L"STATIC", L"", 0, 0, 0, 0, 0);
             MakeControl(gPlaceholderPage, L"STATIC", L"", SS_CENTER, 80, 190, 600, 50, 200);
             CreateSettingsControls(gSettingsPage);
@@ -372,13 +390,20 @@ LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
             if (reinterpret_cast<NMHDR*>(lParam)->idFrom == kTabId &&
                 reinterpret_cast<NMHDR*>(lParam)->code == TCN_SELCHANGE) {
                 ShowSelectedTab();
+                Layout(window);
                 return 0;
             }
             break;
         case WM_COMMAND:
             switch (LOWORD(wParam)) {
-                case kSaveId: SaveSettings(window); return 0;
-                case kReloadId: LoadSettings(false); return 0;
+                case kSaveId:
+                    if (TabCtrl_GetCurSel(gTab) == 1) crosshair_editor::SaveCrosshair();
+                    else SaveSettings(window);
+                    return 0;
+                case kReloadId:
+                    if (TabCtrl_GetCurSel(gTab) == 1) crosshair_editor::LoadCurrentCrosshair();
+                    else LoadSettings(false);
+                    return 0;
                 case kDefaultsId: LoadSettings(true); return 0;
             }
             break;
@@ -389,6 +414,7 @@ LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
             }
             break;
         case WM_DESTROY:
+            crosshair_editor::Destroy();
             if (gBoldFont && gBoldFont != gFont) DeleteObject(gBoldFont);
             PostQuitMessage(0);
             return 0;
@@ -398,7 +424,7 @@ LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
 }  // namespace
 
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int showCommand) {
-    INITCOMMONCONTROLSEX commonControls{sizeof(commonControls), ICC_TAB_CLASSES};
+    INITCOMMONCONTROLSEX commonControls{sizeof(commonControls), ICC_TAB_CLASSES | ICC_BAR_CLASSES};
     InitCommonControlsEx(&commonControls);
 
     WNDCLASSEXW windowClass{sizeof(windowClass)};
@@ -409,7 +435,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int showCommand) {
         instance, MAKEINTRESOURCEW(IDI_APP_ICON), IMAGE_ICON,
         GetSystemMetrics(SM_CXICON), GetSystemMetrics(SM_CYICON), LR_DEFAULTCOLOR));
     windowClass.hCursor = LoadCursorW(nullptr, IDC_ARROW);
-    windowClass.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1);
+    windowClass.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_BTNFACE + 1);
     windowClass.lpszClassName = kWindowClass;
     windowClass.hIconSm = static_cast<HICON>(LoadImageW(
         instance, MAKEINTRESOURCEW(IDI_APP_ICON), IMAGE_ICON,
@@ -418,7 +444,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int showCommand) {
 
     HWND window = CreateWindowExW(0, kWindowClass, L"BHD Player Config",
                                   WS_OVERLAPPEDWINDOW & ~WS_MAXIMIZEBOX,
-                                  CW_USEDEFAULT, CW_USEDEFAULT, 800, 590,
+                                  CW_USEDEFAULT, CW_USEDEFAULT, 1100, 720,
                                   nullptr, nullptr, instance, nullptr);
     if (!window) return 1;
     ShowWindow(window, showCommand);

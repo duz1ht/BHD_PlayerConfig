@@ -30,10 +30,14 @@ target_link_libraries(winmm PRIVATE shlwapi)
 
 add_executable(bhd_player_config WIN32
     src/player_config.cpp
+    src/crosshair_editor.cpp
+    src/crosshair_presets.cpp
+    src/crosshair_tga.cpp
+    src/pff_archive.cpp
     src/player_config.rc)
 target_compile_features(bhd_player_config PRIVATE cxx_std_17)
 target_compile_definitions(bhd_player_config PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX UNICODE _UNICODE)
-target_link_libraries(bhd_player_config PRIVATE comctl32 shlwapi)
+target_link_libraries(bhd_player_config PRIVATE comctl32 shlwapi gdiplus msimg32)
 set_target_properties(bhd_player_config PROPERTIES OUTPUT_NAME "BHD Player Config")
 
 configure_file(bhd_player_config.ini bhd_player_config.ini COPYONLY)
@@ -115,4 +119,17 @@ if(BUILD_TESTING)
     target_include_directories(high_frequency_viewmodel_math_test PRIVATE src)
     target_compile_features(high_frequency_viewmodel_math_test PRIVATE cxx_std_17)
     add_test(NAME high_frequency_viewmodel_math COMMAND high_frequency_viewmodel_math_test)
+
+    add_executable(pff_archive_test tests/pff_archive_test.cpp
+        src/pff_archive.cpp src/crosshair_tga.cpp)
+    target_include_directories(pff_archive_test PRIVATE src)
+    target_compile_features(pff_archive_test PRIVATE cxx_std_17)
+    target_compile_definitions(pff_archive_test PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
+    add_test(NAME pff_archive COMMAND pff_archive_test)
+
+    add_executable(crosshair_presets_test tests/crosshair_presets_test.cpp
+        src/crosshair_presets.cpp src/crosshair_tga.cpp)
+    target_include_directories(crosshair_presets_test PRIVATE src)
+    target_compile_features(crosshair_presets_test PRIVATE cxx_std_17)
+    add_test(NAME crosshair_presets COMMAND crosshair_presets_test)
 endif()
