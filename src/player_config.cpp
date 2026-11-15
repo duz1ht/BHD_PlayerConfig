@@ -7,6 +7,7 @@
 
 #include "player_config_resource.h"
 #include "crosshair_editor.h"
+#include "hud_editor.h"
 
 namespace {
 constexpr wchar_t kWindowClass[] = L"BhdPlayerConfigWindow";
@@ -65,6 +66,7 @@ constexpr int kCategoryGap = 12;
 HWND gTab = nullptr;
 HWND gSettingsPage = nullptr;
 HWND gCrosshairPage = nullptr;
+HWND gHudPage = nullptr;
 HWND gPlaceholderPage = nullptr;
 HWND gStatus = nullptr;
 HFONT gFont = nullptr;
@@ -143,21 +145,19 @@ void ShowSelectedTab() {
     HWND window = GetParent(gTab);
     ShowWindow(gSettingsPage, selected == 0 ? SW_SHOW : SW_HIDE);
     ShowWindow(gCrosshairPage, selected == 1 ? SW_SHOW : SW_HIDE);
-    ShowWindow(gPlaceholderPage, selected >= 2 ? SW_SHOW : SW_HIDE);
+    ShowWindow(gHudPage, selected == 2 ? SW_SHOW : SW_HIDE);
+    ShowWindow(gPlaceholderPage, selected == 3 ? SW_SHOW : SW_HIDE);
     ShowWindow(gStatus, selected == 0 ? SW_SHOW : SW_HIDE);
     ShowWindow(GetDlgItem(window, kDefaultsId), selected == 0 ? SW_SHOW : SW_HIDE);
-    ShowWindow(GetDlgItem(window, kReloadId), selected <= 1 ? SW_SHOW : SW_HIDE);
-    ShowWindow(GetDlgItem(window, kSaveId), selected <= 1 ? SW_SHOW : SW_HIDE);
+    ShowWindow(GetDlgItem(window, kReloadId), selected <= 2 ? SW_SHOW : SW_HIDE);
+    ShowWindow(GetDlgItem(window, kSaveId), selected <= 2 ? SW_SHOW : SW_HIDE);
     SetWindowTextW(GetDlgItem(window, kReloadId),
                    selected == 1 ? L"Load Current Crosshair" : L"Reload");
     SetWindowTextW(GetDlgItem(window, kSaveId),
                    selected == 1 ? L"Apply Crosshair" : L"Save");
-    if (selected >= 2) {
-        wchar_t message[256] = {};
-        const wchar_t* name = selected == 2 ? L"HUD" : L"Fonts";
-        wsprintfW(message, L"%s settings will appear here when those features are added.", name);
-        SetWindowTextW(GetDlgItem(gPlaceholderPage, 200), message);
-    }
+    if (selected == 3)
+        SetWindowTextW(GetDlgItem(gPlaceholderPage, 200),
+                       L"Fonts settings will appear here when those features are added.");
 }
 
 void Layout(HWND window) {
@@ -176,6 +176,8 @@ void Layout(HWND window) {
     MoveWindow(gSettingsPage, pageRect.left, pageRect.top,
                pageRect.right - pageRect.left, pageRect.bottom - pageRect.top, TRUE);
     MoveWindow(gCrosshairPage, pageRect.left, pageRect.top,
+               pageRect.right - pageRect.left, pageRect.bottom - pageRect.top, TRUE);
+    MoveWindow(gHudPage, pageRect.left, pageRect.top,
                pageRect.right - pageRect.left, pageRect.bottom - pageRect.top, TRUE);
     MoveWindow(gPlaceholderPage, pageRect.left, pageRect.top,
                pageRect.right - pageRect.left, pageRect.bottom - pageRect.top, TRUE);
@@ -371,6 +373,7 @@ LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
             gSettingsPage = MakeControl(window, L"STATIC", L"", WS_VSCROLL,
                                         0, 0, 0, 0, 0);
             gCrosshairPage = crosshair_editor::Create(window, gFont, gBoldFont);
+            gHudPage = hud_editor::Create(window, gFont, gBoldFont);
             gPlaceholderPage = MakeControl(window, L"STATIC", L"", 0, 0, 0, 0, 0);
             MakeControl(gPlaceholderPage, L"STATIC", L"", SS_CENTER, 80, 190, 600, 50, 200);
             CreateSettingsControls(gSettingsPage);
@@ -398,10 +401,12 @@ LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
             switch (LOWORD(wParam)) {
                 case kSaveId:
                     if (TabCtrl_GetCurSel(gTab) == 1) crosshair_editor::SaveCrosshair();
+                    else if (TabCtrl_GetCurSel(gTab) == 2) hud_editor::Save(window);
                     else SaveSettings(window);
                     return 0;
                 case kReloadId:
                     if (TabCtrl_GetCurSel(gTab) == 1) crosshair_editor::LoadCurrentCrosshair();
+                    else if (TabCtrl_GetCurSel(gTab) == 2) hud_editor::Load(false);
                     else LoadSettings(false);
                     return 0;
                 case kDefaultsId: LoadSettings(true); return 0;

@@ -9,6 +9,8 @@ add_library(winmm SHARED src/winmm_proxy.cpp src/bhd_patches.cpp src/game_window
     src/camera_position.cpp src/camera_position_math.cpp
     src/high_frequency_viewmodel.cpp src/high_frequency_viewmodel_math.cpp
     src/allow_high_resolution_fonts.cpp src/fnt_layout.cpp
+    src/hud_layout.cpp src/hud_layout_math.cpp
+    src/pixel_perfect_crosshair.cpp src/pixel_perfect_crosshair_math.cpp
     src/winmm.def)
 target_compile_features(winmm PRIVATE cxx_std_17)
 
@@ -31,6 +33,7 @@ target_link_libraries(winmm PRIVATE shlwapi)
 add_executable(bhd_player_config WIN32
     src/player_config.cpp
     src/crosshair_editor.cpp
+    src/hud_editor.cpp
     src/crosshair_presets.cpp
     src/crosshair_tga.cpp
     src/pff_archive.cpp
@@ -132,4 +135,16 @@ if(BUILD_TESTING)
     target_include_directories(crosshair_presets_test PRIVATE src)
     target_compile_features(crosshair_presets_test PRIVATE cxx_std_17)
     add_test(NAME crosshair_presets COMMAND crosshair_presets_test)
+
+    add_executable(pixel_perfect_crosshair_math_test
+        tests/pixel_perfect_crosshair_math_test.cpp
+        src/pixel_perfect_crosshair_math.cpp)
+    target_include_directories(pixel_perfect_crosshair_math_test PRIVATE src)
+    target_compile_features(pixel_perfect_crosshair_math_test PRIVATE cxx_std_17)
+    add_test(NAME pixel_perfect_crosshair_math COMMAND pixel_perfect_crosshair_math_test)
+
+    add_executable(hud_layout_math_test tests/hud_layout_math_test.cpp src/hud_layout_math.cpp)
+    target_include_directories(hud_layout_math_test PRIVATE src)
+    target_compile_features(hud_layout_math_test PRIVATE cxx_std_17)
+    add_test(NAME hud_layout_math COMMAND hud_layout_math_test)
 endif()

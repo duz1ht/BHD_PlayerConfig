@@ -16,6 +16,7 @@
 #include "camera_fov.h"
 #include "high_frequency_viewmodel.h"
 #include "allow_high_resolution_fonts.h"
+#include "hud_layout.h"
 
 namespace {
 constexpr uintptr_t kImageBase = 0x400000;
@@ -42,6 +43,7 @@ struct PatchConfig {
     bool borderlessFullscreen = true;
     bool forceDesktopResolution = true;
     bool allowHighResolutionFonts = true;
+    int hudLayoutMode = 1;
 };
 
 struct ByteSpan {
@@ -188,6 +190,10 @@ bool BoolFromIni(const wchar_t* path, const wchar_t* key, bool defaultValue) {
     return GetPrivateProfileIntW(L"PatchGroups", key, defaultValue ? 1 : 0, path) != 0;
 }
 
+int IntFromIni(const wchar_t* path, const wchar_t* key, int defaultValue) {
+    return GetPrivateProfileIntW(L"PatchGroups", key, defaultValue, path);
+}
+
 void BuildIniPath(wchar_t* iniPath, DWORD size) {
     iniPath[0] = L'\0';
     const DWORD length = GetModuleFileNameW(nullptr, iniPath, size);
@@ -230,6 +236,9 @@ PatchConfig LoadPatchConfig() {
         BoolFromIni(iniPath, L"ForceDesktopResolution", config.forceDesktopResolution);
     config.allowHighResolutionFonts =
         BoolFromIni(iniPath, L"AllowHighResolutionFonts", config.allowHighResolutionFonts);
+    const int legacyCrosshair = BoolFromIni(iniPath, L"PixelPerfectCrosshair", true) ? 1 : 0;
+    config.hudLayoutMode = IntFromIni(iniPath, L"HUDLayoutMode", legacyCrosshair);
+    if (config.hudLayoutMode < 0 || config.hudLayoutMode > 3) config.hudLayoutMode = 1;
     return config;
 }
 
@@ -242,6 +251,7 @@ void ApplyBhdPatches() {
     mouse_scaling_fix::Install(config.mouseScalingFix);
     mouse_scale_query::Install(config.mouseScaleQueryFix);
     allow_high_resolution_fonts::Install(config.allowHighResolutionFonts);
+    hud_layout::Install(config.hudLayoutMode);
     camera_fov::Install(config.useCorrectAspectFov, config.highFrequencyCamera,
                         config.highFrequencyCameraPosition);
     high_frequency_viewmodel::Install(

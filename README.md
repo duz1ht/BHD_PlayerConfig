@@ -22,7 +22,7 @@ Game directory/
 
 The configurator always reads and writes `bhd_player_config.ini` beside its own executable. The DLL reads that same filename from the game directory. Keep the DLL, configurator and INI together. The INI file is optional; if it is missing, the DLL uses the default values shown below. The configurator can create it by clicking **Save**. You can also edit it manually, using `1` to enable an option and `0` to disable it.
 
-The application includes **Settings**, **Crosshair**, **HUD** and **Fonts** tabs. Settings contains the options currently supported by the DLL. Crosshair provides compact style and color selectors for 80 code-generated crosshairs and a large 16:9 preview. **Apply Crosshair** generates the selected 64x64 TGA in memory and installs it. HUD and Fonts reserve the interface for their respective features as they are implemented.
+The application includes **Settings**, **Crosshair**, **HUD** and **Fonts** tabs. Settings contains the boolean DLL options. Crosshair provides style and color selectors for 80 generated crosshairs and a 16:9 preview. HUD selects one of the four layout modes. Fonts reserves the interface for future controls.
 
 The Crosshair tab works directly with `coma20mm.tga` inside `localres.pff`, which must be beside `BHD Player Config.exe`. **Load Current Crosshair** reads the current image from the archive and recognizes matching generated choices; other images appear as a custom/current crosshair. Applying a choice rebuilds a temporary PFF beside the original, verifies the replacement and then replaces `localres.pff`; it does not create a separate TGA or installer. Close the game before applying so it is not holding the archive open. The configurator supports the BHD PFF3 layout with 36-byte entry records and preserves the other archive entries and trailing data.
 
@@ -43,6 +43,7 @@ that patch the same game code still require compatibility testing. Only one
 | `BorderlessFullscreen` | `1` | Runs the game in a borderless window that covers the entire monitor. |
 | `ForceDesktopResolution` | `1` | With `BorderlessFullscreen=1`, uses the monitor resolution as the internal render resolution. At `0`, the resolution selected in the game is stretched to fill the screen. Has no effect when borderless mode is disabled. |
 | `UseCorrectAspectFOV` | `1` | Corrects the field of view for internal render resolutions wider than 4:3 without changing zoom, scopes, or special cameras. |
+| `HUDLayoutMode` | `1` | `0`: original; `1`: original with native-size crosshair; `2`: centered aspect-correct HUD; `3`: widescreen-anchored HUD. Modes 1-3 keep the crosshair at its native pixel size. |
 | `DPIAware` | `1` | Prevents Windows DPI scaling from distorting window, monitor, and cursor coordinates. Recommended for borderless mode. |
 | `AllowHighResolutionFonts` | `1` | Detects the atlas dimensions of each loaded FNT0 file independently, allowing stock and higher-resolution fonts to coexist. Does not create or replace font assets. |
 | `RawMouseInput` | `1` | Uses Windows Raw Input for more reliable relative mouse input while preserving the game's sensitivity, inversion, and bindings. |
@@ -62,6 +63,7 @@ Complete default configuration:
 BorderlessFullscreen=1
 ForceDesktopResolution=1
 UseCorrectAspectFOV=1
+HUDLayoutMode=1
 DPIAware=1
 AllowHighResolutionFonts=1
 RawMouseInput=1
