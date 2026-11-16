@@ -6,6 +6,7 @@
 #include <cstring>
 
 #include "hud_layout_math.h"
+#include "hud_overlays.h"
 #include "pixel_perfect_crosshair.h"
 #include "pixel_perfect_crosshair_math.h"
 
@@ -109,7 +110,7 @@ bool Install(int mode) {
     if (std::memcmp(scale, kScaleSignature, sizeof(kScaleSignature)) != 0 ||
         std::memcmp(hud, kHudSignature, sizeof(kHudSignature)) != 0 ||
         std::memcmp(texture, kDrawTextureSignature, sizeof(kDrawTextureSignature)) != 0) return false;
-    return crosshair &&
+    return crosshair && hud_overlays::Install(g_mode) &&
         Detour(texture, kDrawTextureHookLength, reinterpret_cast<const void*>(&DrawTexture),
                reinterpret_cast<void**>(&g_drawTexture)) &&
         Detour(scale, kScaleHookLength, reinterpret_cast<const void*>(&ScalePoint),

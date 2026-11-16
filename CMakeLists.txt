@@ -4,12 +4,12 @@ project(BHD_QoL_WinMM LANGUAGES CXX)
 add_library(winmm SHARED src/winmm_proxy.cpp src/bhd_patches.cpp src/game_window.cpp
     src/cursor_clip.cpp src/cursor_visibility.cpp src/dpi_awareness.cpp
     src/borderless_fullscreen.cpp src/borderless_gamma.cpp
-    src/raw_input.cpp src/raw_input_math.cpp src/mouse_scaling_fix.cpp src/mouse_scale_query.cpp src/camera_fov.cpp src/camera_fov_math.cpp
+    src/raw_input.cpp src/raw_input_math.cpp src/mouse_scaling_fix.cpp src/mousescale_fix.cpp src/camera_fov.cpp src/camera_fov_math.cpp
     src/high_frequency_camera.cpp src/high_frequency_camera_math.cpp
-    src/camera_position.cpp src/camera_position_math.cpp
+    src/camera_position.cpp src/camera_position_math.cpp src/locomotion_response.cpp
     src/high_frequency_viewmodel.cpp src/high_frequency_viewmodel_math.cpp
     src/allow_high_resolution_fonts.cpp src/fnt_layout.cpp
-    src/hud_layout.cpp src/hud_layout_math.cpp
+    src/hud_layout.cpp src/hud_layout_math.cpp src/hud_overlays.cpp
     src/pixel_perfect_crosshair.cpp src/pixel_perfect_crosshair_math.cpp
     src/winmm.def)
 target_compile_features(winmm PRIVATE cxx_std_17)
@@ -43,10 +43,33 @@ target_compile_definitions(bhd_player_config PRIVATE WIN32_LEAN_AND_MEAN NOMINMA
 target_link_libraries(bhd_player_config PRIVATE comctl32 shlwapi gdiplus msimg32)
 set_target_properties(bhd_player_config PROPERTIES OUTPUT_NAME "BHD Player Config")
 
-configure_file(bhd_player_config.ini bhd_player_config.ini COPYONLY)
+# Multi-configuration generators place binaries in Release/Debug subfolders.
+# Keep the default configuration beside the executable in every generator.
+file(GENERATE
+    OUTPUT "$<TARGET_FILE_DIR:bhd_player_config>/bhd_player_config.ini"
+    INPUT "${CMAKE_CURRENT_SOURCE_DIR}/bhd_player_config.ini")
 
 include(CTest)
 if(BUILD_TESTING)
+    add_executable(hud_overlays_test tests/hud_overlays_test.cpp src/hud_layout_math.cpp)
+    target_include_directories(hud_overlays_test PRIVATE src)
+    target_compile_features(hud_overlays_test PRIVATE cxx_std_17)
+    target_compile_definitions(hud_overlays_test PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
+    add_test(NAME hud_overlays COMMAND hud_overlays_test)
+    foreach(mode signature rollback)
+        add_test(NAME hud_overlays_${mode} COMMAND hud_overlays_test ${mode})
+    endforeach()
+    add_executable(mousescale_fix_test tests/mousescale_fix_test.cpp)
+    target_compile_features(mousescale_fix_test PRIVATE cxx_std_17)
+    target_compile_definitions(mousescale_fix_test PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
+    add_test(NAME mousescale_fix COMMAND mousescale_fix_test)
+    add_executable(locomotion_response_test tests/locomotion_response_test.cpp)
+    target_compile_features(locomotion_response_test PRIVATE cxx_std_17)
+    target_compile_definitions(locomotion_response_test PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
+    add_test(NAME locomotion_response COMMAND locomotion_response_test)
+    foreach(mode signature write_failure)
+        add_test(NAME locomotion_response_${mode} COMMAND locomotion_response_test ${mode})
+    endforeach()
     add_executable(fnt_layout_test tests/fnt_layout_test.cpp src/fnt_layout.cpp)
     target_include_directories(fnt_layout_test PRIVATE src)
     target_compile_features(fnt_layout_test PRIVATE cxx_std_17)

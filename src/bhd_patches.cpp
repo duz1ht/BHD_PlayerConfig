@@ -12,11 +12,12 @@
 #include "game_window.h"
 #include "raw_input.h"
 #include "mouse_scaling_fix.h"
-#include "mouse_scale_query.h"
+#include "mousescale_fix.h"
 #include "camera_fov.h"
 #include "high_frequency_viewmodel.h"
 #include "allow_high_resolution_fonts.h"
 #include "hud_layout.h"
+#include "locomotion_response.h"
 
 namespace {
 constexpr uintptr_t kImageBase = 0x400000;
@@ -34,7 +35,7 @@ struct PatchConfig {
     bool rawMouseInput = true;
     bool restoreCursorClip = true;
     bool mouseScalingFix = true;
-    bool mouseScaleQueryFix = true;
+    bool mousescaleFix = true;
     bool useCorrectAspectFov = true;
     bool highFrequencyCamera = true;
     bool highFrequencyCameraPosition = true;
@@ -43,6 +44,7 @@ struct PatchConfig {
     bool borderlessFullscreen = true;
     bool forceDesktopResolution = true;
     bool allowHighResolutionFonts = true;
+    bool responsiveMovementDirection = false;
     int hudLayoutMode = 1;
 };
 
@@ -219,8 +221,8 @@ PatchConfig LoadPatchConfig() {
     config.restoreCursorClip =
         BoolFromIni(iniPath, L"RestoreCursorClip", config.restoreCursorClip);
     config.mouseScalingFix = BoolFromIni(iniPath, L"MouseScalingFix", config.mouseScalingFix);
-    config.mouseScaleQueryFix =
-        BoolFromIni(iniPath, L"MouseScaleQueryFix", config.mouseScaleQueryFix);
+    config.mousescaleFix =
+        BoolFromIni(iniPath, L"MousescaleFix", config.mousescaleFix);
     config.useCorrectAspectFov =
         BoolFromIni(iniPath, L"UseCorrectAspectFOV", config.useCorrectAspectFov);
     config.highFrequencyCamera =
@@ -229,6 +231,7 @@ PatchConfig LoadPatchConfig() {
         iniPath, L"HighFrequencyCameraPosition", config.highFrequencyCameraPosition);
     config.highFrequencyViewmodel = BoolFromIni(
         iniPath, L"HighFrequencyViewmodel", config.highFrequencyViewmodel);
+    config.responsiveMovementDirection = BoolFromIni(iniPath, L"ResponsiveMovementDirection", false);
     config.dpiAware = BoolFromIni(iniPath, L"DPIAware", config.dpiAware);
     config.borderlessFullscreen =
         BoolFromIni(iniPath, L"BorderlessFullscreen", config.borderlessFullscreen);
@@ -248,8 +251,9 @@ void ApplyBhdPatches() {
     if (imageBase != kImageBase) {
         return;
     }
+    locomotion_response::Install(config.responsiveMovementDirection);
     mouse_scaling_fix::Install(config.mouseScalingFix);
-    mouse_scale_query::Install(config.mouseScaleQueryFix);
+    mousescale_fix::Install(config.mousescaleFix);
     allow_high_resolution_fonts::Install(config.allowHighResolutionFonts);
     hud_layout::Install(config.hudLayoutMode);
     camera_fov::Install(config.useCorrectAspectFov, config.highFrequencyCamera,

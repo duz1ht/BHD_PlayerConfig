@@ -28,7 +28,7 @@ struct Setting {
     bool recommended;
 };
 
-constexpr std::array<Setting, 14> kSettings{{
+constexpr std::array<Setting, 15> kSettings{{
     {L"BorderlessFullscreen", L"Borderless fullscreen", L"Runs the game in a borderless window covering the monitor.", true, false},
     {L"ForceDesktopResolution", L"Force desktop resolution", L"Uses the monitor resolution while borderless mode is enabled.", true, false},
     {L"UseCorrectAspectFOV", L"Correct aspect-ratio FOV", L"Corrects first-person FOV for widescreen render resolutions.", true, true},
@@ -36,13 +36,14 @@ constexpr std::array<Setting, 14> kSettings{{
     {L"AdaptiveScreenCenter", L"Adaptive screen center", L"Calculates screen center from the current resolution.", true, true},
     {L"RawMouseInput", L"Raw mouse input", L"Uses Windows Raw Input for relative mouse movement.", true, true},
     {L"MouseScalingFix", L"Mouse scaling fix", L"Corrects fixed-point rounding, especially while scoped.", true, true},
-    {L"MouseScaleQueryFix", L"Mouse scale query fix", L"Makes a bare mousescale command report without changing it.", true, true},
+    {L"MousescaleFix", L"Mousescale fix", L"Makes queries safe and preserves command changes across mission loads.", true, true},
     {L"ScaleCursorClipToResolution", L"Scale cursor confinement", L"Uses the current resolution for cursor confinement bounds.", true, true},
     {L"RestoreCursorClip", L"Restore cursor confinement", L"Restores confinement after focus, display or window changes.", true, true},
     {L"HighFrequencyCamera", L"High-frequency camera rotation", L"Applies recent Raw Input to the presentation camera.", true, false},
     {L"HighFrequencyCameraPosition", L"High-frequency camera position", L"Smooths first-person camera movement between game updates.", true, false},
     {L"HighFrequencyViewmodel", L"High-frequency viewmodel", L"Makes first-person hands and weapons follow the smooth camera.", true, false},
     {L"AllowHighResolutionFonts", L"Allow high-resolution fonts", L"Loads compatible FNT0 atlases from 256 through 4096 pixels.", true, true},
+    {L"ResponsiveMovementDirection", L"Faster direction changes (experimental)", L"Changes physical movement while grounded. Multiplayer unvalidated.", false, false},
 }};
 
 struct SettingCategory {
@@ -51,11 +52,12 @@ struct SettingCategory {
     size_t settingCount;
 };
 
-constexpr std::array<SettingCategory, 4> kCategories{{
+constexpr std::array<SettingCategory, 5> kCategories{{
     {L"Display", 0, 5},
     {L"Mouse && Cursor", 5, 5},
     {L"Camera && Viewmodel", 10, 3},
     {L"Fonts", 13, 1},
+    {L"Movement (experimental)", 14, 1},
 }};
 
 constexpr int kCategoryTopPadding = 26;

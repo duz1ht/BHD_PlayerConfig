@@ -14,10 +14,10 @@ const wchar_t* kNames[] = {
     L"Widescreen anchored HUD",
 };
 const wchar_t* kDescriptions[] = {
-    L"Uses the game's original HUD and crosshair scaling.",
-    L"Keeps the original HUD and draws the crosshair at its native pixel size.",
-    L"Scales the 1024x768 HUD uniformly and centers it on widescreen displays.",
-    L"Keeps HUD proportions while anchoring left, center and right groups across the screen.",
+    L"Uses original scaling for the HUD, in-game menus/windows and crosshair.",
+    L"Keeps original HUD and in-game menu/window scaling; the crosshair uses its native pixel size.",
+    L"Centers the HUD and in-game menus/windows in 4:3, preserving their proportions.",
+    L"Anchors HUD groups across the screen; in-game menus/windows keep their proportions and stay centered.",
 };
 
 HWND g_page = nullptr;

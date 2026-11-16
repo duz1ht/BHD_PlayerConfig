@@ -1,5 +1,5 @@
 #pragma once
 
-namespace mouse_scale_query {
+namespace mousescale_fix {
 bool Install(bool enabled);
 }
