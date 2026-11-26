@@ -382,8 +382,10 @@ bool GetProjectedNativeMovement(LONG* x, LONG* y) {
         pendingY, *reinterpret_cast<const volatile LONG*>(kPreviousYTerm), divisor, phase);
     return true;
 }
-unsigned long GetSimulationSerial() {
-    return static_cast<unsigned long>(InterlockedCompareExchange(&g_pollSerial, 0, 0));
+bool TryGetSimulationSerial(uint32_t& serial) {
+    if (InterlockedCompareExchange(&g_backendState, kInactive, kInactive) != kActive) return false;
+    serial = static_cast<uint32_t>(InterlockedCompareExchange(&g_pollSerial, 0, 0));
+    return true;
 }
 
 }  // namespace raw_input

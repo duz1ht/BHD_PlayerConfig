@@ -22,7 +22,7 @@ Game directory/
 
 The configurator always reads and writes `bhd_player_config.ini` beside its own executable. The DLL reads that same filename from the game directory. Keep the DLL, configurator and INI together. The INI file is optional; if it is missing, the DLL uses the default values shown below. The configurator can create it by clicking **Save**. You can also edit it manually, using `1` to enable an option and `0` to disable it.
 
-The application includes **Settings**, **Crosshair**, **HUD** and **Fonts** tabs. Settings contains the boolean DLL options. Crosshair provides style and color selectors for 80 generated crosshairs and a 16:9 preview. HUD selects one of the four layout modes. Fonts reserves the interface for future controls.
+The application includes **Settings**, **Crosshair**, and **HUD** tabs. Settings contains the boolean DLL options. Crosshair provides style and color selectors for 80 generated crosshairs and a 16:9 preview. HUD selects one of the four layout modes.
 
 The Crosshair tab works directly with `coma20mm.tga` inside `localres.pff`, which must be beside `BHD Player Config.exe`. **Load Current Crosshair** reads the current image from the archive and recognizes matching generated choices; other images appear as a custom/current crosshair. Applying a choice rebuilds a temporary PFF beside the original, verifies the replacement and then replaces `localres.pff`; it does not create a separate TGA or installer. Close the game before applying so it is not holding the archive open. The configurator supports the BHD PFF3 layout with 36-byte entry records and preserves the other archive entries and trailing data.
 
@@ -44,17 +44,16 @@ that patch the same game code still require compatibility testing. Only one
 | `ForceDesktopResolution` | `1` | With `BorderlessFullscreen=1`, uses the monitor resolution as the internal render resolution. At `0`, the resolution selected in the game is stretched to fill the screen. Has no effect when borderless mode is disabled. |
 | `UseCorrectAspectFOV` | `1` | Corrects the field of view for internal render resolutions wider than 4:3 without changing zoom, scopes, or special cameras. |
 | `HUDLayoutMode` | `1` | Applies to the HUD and in-game menus/windows (Armory, G briefing/objectives, F1 shortcuts, K players/kill list). `0`: original scaling; `1`: original scaling with native-size crosshair; `2`: centered 4:3 HUD and windows; `3`: widescreen-anchored HUD groups with centered 4:3 windows. The compact player/team counter stays anchored to the right edge in modes 2/3. Modes 1-3 keep the crosshair at its native pixel size. |
-| `DPIAware` | `1` | Prevents Windows DPI scaling from distorting window, monitor, and cursor coordinates. Recommended for borderless mode. |
 | `AllowHighResolutionFonts` | `1` | Detects the atlas dimensions of each loaded FNT0 file independently, allowing stock and higher-resolution fonts to coexist. Does not create or replace font assets. |
-| `RawMouseInput` | `1` | Uses Windows Raw Input for more reliable relative mouse input while preserving the game's sensitivity, inversion, and bindings. |
-| `HighFrequencyCamera` | `1` | Applies Raw Input movement that arrived after the latest game update to the local first-person presentation camera. Requires `RawMouseInput=1`. |
+| `RawMouseInput` **🧪 Experimental** | `1` | Uses Windows Raw Input for more reliable relative mouse input while preserving the game's sensitivity, inversion, and bindings. |
+| `HighFrequencyCamera` **🧪 Experimental** | `1` | Applies Raw Input movement that arrived after the latest game update to the local first-person presentation camera. Requires `RawMouseInput=1`. |
 | `HighFrequencyCameraPosition` | `1` | Interpolates on-foot first-person camera XYZ to smooth static scenery while walking/strafing. Independent of Raw Input and mouse rotation. Adds up to one movement update of visual position lag. |
-| `HighFrequencyViewmodel` | `1` | Makes the local first-person weapon and hands follow the presentation camera, with interpolation of weapon-relative motion and bones. Requires `HighFrequencyCamera=1` or `HighFrequencyCameraPosition=1`. |
+| `HighFrequencyViewmodel` **🧪 Experimental** | `1` | Makes the local first-person weapon and hands follow the presentation camera, with interpolation of weapon-relative motion and bones. Requires `HighFrequencyCameraPosition=1` or both `HighFrequencyCamera=1` and `RawMouseInput=1`. |
 | `MouseScalingFix` | `1` | Fixes rounding of small mouse movements, especially noticeable when using scoped weapons. |
 | `MousescaleFix` | `1` | Makes a bare `mousescale` query safe and preserves `mousescale N` changes across mission loads. |
-| `AdaptiveScreenCenter` | `1` | Calculates the screen center from the current resolution instead of using fixed values. |
+| `AdaptiveScreenCenter` | `1` | Uses the current game window's client center for cursor recentering and relative movement when the game uses its original mouse input routine. |
 | `ScaleCursorClipToResolution` | `1` | Uses the current resolution when confining the cursor instead of fixed 640x480 bounds. |
-| `RestoreCursorClip` | `1` | Restores cursor confinement after Alt+Tab, focus, resolution, display, or window changes. Works independently of `RawMouseInput`. |
+| `RestoreCursorClip` | `1` | Uses the full game client area when the active game confines the cursor. Restores confinement after Alt+Tab and window or display changes while honoring explicit releases. Works independently of `RawMouseInput`. |
 
 Complete default configuration:
 
@@ -64,7 +63,6 @@ BorderlessFullscreen=1
 ForceDesktopResolution=1
 UseCorrectAspectFOV=1
 HUDLayoutMode=1
-DPIAware=1
 AllowHighResolutionFonts=1
 RawMouseInput=1
 HighFrequencyCamera=1
@@ -139,29 +137,6 @@ weapon-relative motion and bone transforms in a private palette. Position
 smoothing is shared with the weapon, including when raw mouse rotation is off.
 History is rebased across position discontinuities. Weapon simulation, firing
 and networking remain native.
-
-## Experimental movement response
-
-`ResponsiveMovementDirection` is available under **Movement (experimental)** in
-BHD Player Config. It defaults to off and requires restarting the game.
-
-| INI key (`[PatchGroups]`) | Default | Behavior |
-|---|---|---|
-| `ResponsiveMovementDirection` | `0` | Selects a new direction before each soldier animation evaluation, while already moving on the ground in the same posture. |
-
-The prototype only handles the local player's direction changes inside state families
-`0x24..0x2b`, `0x34..0x3b`, and `0x3c..0x43`. Starting, stopping, posture changes,
-queued actions, special actions, death, airborne movement and mounted movement retain
-the native selection path. It does not remove the original four-update gate or accelerate
-the other work inside that block. Direction selection occurs earlier in the soldier
-routine, before displacement extraction. Native animation transition durations remain
-unchanged. It does not replace collision or networking. Multiplayer synchronization
-and in-game feel have not yet been fully validated.
-
-Installation validates the call site and relevant routine signatures before writing the
-hook. A failed installation leaves the feature disabled. Existing camera
-and viewmodel interpolation options remain independent. See
-[the A/B validation procedure](tests/locomotion_response_manual_test.md).
 
 ## Building
 

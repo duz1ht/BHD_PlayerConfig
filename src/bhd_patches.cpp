@@ -3,28 +3,34 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 
 #include "bhd_patches.h"
 
-#include "dpi_awareness.h"
 #include "borderless_fullscreen.h"
 #include "borderless_gamma.h"
+#include "cursor_clip.h"
 #include "game_window.h"
 #include "raw_input.h"
 #include "mouse_scaling_fix.h"
 #include "mousescale_fix.h"
 #include "camera_fov.h"
+#include "camera_position.h"
 #include "high_frequency_viewmodel.h"
 #include "allow_high_resolution_fonts.h"
 #include "hud_layout.h"
-#include "locomotion_response.h"
 
 namespace {
 constexpr uintptr_t kImageBase = 0x400000;
-constexpr uintptr_t kPatchAddressLoadingGameDynamicResolution = 0x4BC711;
+constexpr uintptr_t kLegacyCursorRecenter = 0x00567958;
+constexpr uintptr_t kLegacyCursorEpilogue = 0x005679BA;
+constexpr uintptr_t kGameWindow = 0x00F654FC;
+constexpr uintptr_t kLegacyMouseX = 0x00F655E0;
+constexpr uintptr_t kLegacyMouseY = 0x00F655E4;
+constexpr uintptr_t kRelativeMouseX = 0x00F655EC;
+constexpr uintptr_t kRelativeMouseY = 0x00F655F0;
 constexpr uintptr_t kPatchAddressInitializeInGameSystemsClipCursor = 0x4623D2;
 constexpr uintptr_t kPatchAddressClipCursorToViewPort = 0x4628D3;
-constexpr uintptr_t kDynamicResolutionCodeCave = 0x5E4879;
 constexpr uintptr_t kInitialClipCursorCodeCave = 0x5E4912;
 constexpr uintptr_t kClipCursorCodeCave = 0x5E492B;
 
@@ -40,11 +46,9 @@ struct PatchConfig {
     bool highFrequencyCamera = true;
     bool highFrequencyCameraPosition = true;
     bool highFrequencyViewmodel = true;
-    bool dpiAware = true;
     bool borderlessFullscreen = true;
     bool forceDesktopResolution = true;
     bool allowHighResolutionFonts = true;
-    bool responsiveMovementDirection = false;
     int hudLayoutMode = 1;
 };
 
@@ -62,13 +66,25 @@ struct Patch {
 
 #define BYTE_SPAN(name) ByteSpan{name, sizeof(name)}
 
-const unsigned char kDynamicResolutionCodeCaveBytes[] = {
-    0x89, 0x1D, 0xD8, 0xB3, 0x9F, 0x00, 0x8B, 0x1D, 0xC0, 0x72, 0x9F, 0x00,
-    0xD1, 0xFB, 0x89, 0x1D, 0x22, 0xC3, 0x60, 0x00, 0x8B, 0x1D, 0xC4, 0x72,
-    0x9F, 0x00, 0xD1, 0xFB, 0x89, 0x1D, 0x26, 0xC3, 0x60, 0x00, 0x8B, 0x1D,
-    0xC0, 0x72, 0x9F, 0x00, 0xD1, 0xFB, 0xF7, 0xDB, 0x89, 0x1D, 0x2B, 0xC3,
-    0x60, 0x00, 0x8B, 0x1D, 0xC4, 0x72, 0x9F, 0x00, 0xD1, 0xFB, 0xF7, 0xDB,
-    0x89, 0x1D, 0x30, 0xC3, 0x60, 0x00, 0xE9, 0x57, 0x7E, 0xED, 0xFF,
+// PollMouseInput tail after draining mouse messages, through its original return.
+const unsigned char kLegacyCursorExpected[] = {
+    0x8B, 0x15, 0xFC, 0x54, 0xF6, 0x00,             // mov edx,[gameWindow]
+    0x8D, 0x4C, 0x24, 0x04,                         // lea ecx,[esp+4]
+    0x51, 0x52,                                     // push ecx; push edx
+    0xFF, 0x15, 0x20, 0x13, 0x61, 0x00,             // call [ClientToScreen]
+    0x8B, 0x44, 0x24, 0x08, 0x8B, 0x4C, 0x24, 0x04, // Load screen origin.
+    0x05, 0xF0, 0x00, 0x00, 0x00, 0x50,             // Push origin.y + 240.
+    0x81, 0xC1, 0x40, 0x01, 0x00, 0x00, 0x51,       // Push origin.x + 320.
+    0xFF, 0x15, 0xD8, 0x12, 0x61, 0x00,             // call [SetCursorPos]
+    0x8B, 0x15, 0xE0, 0x55, 0xF6, 0x00,             // mov edx,[mouseX]
+    0xA1, 0xE4, 0x55, 0xF6, 0x00,                   // mov eax,[mouseY]
+    0x81, 0xC2, 0xC0, 0xFE, 0xFF, 0xFF,             // add edx,-320
+    0x05, 0x10, 0xFF, 0xFF, 0xFF,                   // add eax,-240
+    0x89, 0x15, 0xEC, 0x55, 0xF6, 0x00,             // mov [relativeX],edx
+    0xA3, 0xF0, 0x55, 0xF6, 0x00,                   // mov [relativeY],eax
+    0xC7, 0x05, 0xE0, 0x55, 0xF6, 0x00, 0x40, 0x01, 0x00, 0x00,
+    0xC7, 0x05, 0xE4, 0x55, 0xF6, 0x00, 0xF0, 0x00, 0x00, 0x00,
+    0x5E, 0x83, 0xC4, 0x24, 0xC3,                   // pop esi; add esp,24h; ret
 };
 
 const unsigned char kInitialClipCursorCodeCaveBytes[] = {
@@ -83,26 +99,10 @@ const unsigned char kClipCursorCodeCaveBytes[] = {
     0xFF,
 };
 
-const unsigned char kLoadingDynamicResolutionExpected[] = {0x89, 0x1D, 0xD8, 0xB3, 0x9F, 0x00};
-const unsigned char kLoadingDynamicResolutionReplacement[] = {0xE9, 0x63, 0x81, 0x12, 0x00, 0x90};
 const unsigned char kInitialClipCursorExpected[] = {0xC7, 0x45, 0xF8, 0x7F, 0x02, 0x00, 0x00};
 const unsigned char kInitialClipCursorReplacement[] = {0xE9, 0x3B, 0x25, 0x18, 0x00, 0x90, 0x90};
 const unsigned char kClipCursorExpected[] = {0xC7, 0x45, 0xF8, 0x7F, 0x02, 0x00, 0x00};
 const unsigned char kClipCursorReplacement[] = {0xE9, 0x53, 0x20, 0x18, 0x00, 0x90, 0x90};
-
-const Patch kDynamicResolutionCodeCavePatch = {
-    kDynamicResolutionCodeCave,
-    {nullptr, sizeof(kDynamicResolutionCodeCaveBytes)},
-    BYTE_SPAN(kDynamicResolutionCodeCaveBytes),
-    true,
-};
-
-const Patch kDynamicResolutionCorePatch = {
-    kPatchAddressLoadingGameDynamicResolution,
-    BYTE_SPAN(kLoadingDynamicResolutionExpected),
-    BYTE_SPAN(kLoadingDynamicResolutionReplacement),
-    false,
-};
 
 const Patch kInitialClipCursorCodeCavePatch = {
     kInitialClipCursorCodeCave,
@@ -179,6 +179,57 @@ bool ApplyPatch(const Patch& patch) {
     return WriteBytes(patch.virtualAddress, patch.replacement);
 }
 
+void __cdecl RecenterLegacyCursor() {
+    static HWND previousWindow = nullptr;
+    static POINT previousCenter = {};
+
+    const HWND window = *reinterpret_cast<HWND*>(kGameWindow);
+    auto& mouseX = *reinterpret_cast<LONG*>(kLegacyMouseX);
+    auto& mouseY = *reinterpret_cast<LONG*>(kLegacyMouseY);
+    auto& relativeX = *reinterpret_cast<LONG*>(kRelativeMouseX);
+    auto& relativeY = *reinterpret_cast<LONG*>(kRelativeMouseY);
+    const LONG polledX = mouseX;
+    const LONG polledY = mouseY;
+    relativeX = 0;
+    relativeY = 0;
+
+    RECT client = {};
+    if (!GetClientRect(window, &client) || IsRectEmpty(&client)) {
+        previousWindow = nullptr;
+        return;
+    }
+    const POINT center = {(client.left + client.right) / 2,
+                          (client.top + client.bottom) / 2};
+    POINT screen = center;
+    if (!ClientToScreen(window, &screen) || !SetCursorPos(screen.x, screen.y)) {
+        previousWindow = nullptr;
+        return;
+    }
+
+    // The first poll at a new center may still contain coordinates from the old one.
+    if (window == previousWindow && center.x == previousCenter.x && center.y == previousCenter.y) {
+        relativeX = polledX - center.x;
+        relativeY = polledY - center.y;
+    }
+    mouseX = center.x;
+    mouseY = center.y;
+    previousWindow = window;
+    previousCenter = center;
+}
+
+void InstallAdaptiveScreenCenter() {
+    // Replace the first two whole instructions with a call and a jump to the
+    // original epilogue. The Raw Input hook is at the separate function entry.
+    unsigned char replacement[] = {0xE8, 0, 0, 0, 0, 0xE9, 0, 0, 0, 0};
+    const uint32_t callOffset = static_cast<uint32_t>(
+        reinterpret_cast<uintptr_t>(&RecenterLegacyCursor) - (kLegacyCursorRecenter + 5));
+    const uint32_t jumpOffset = static_cast<uint32_t>(
+        kLegacyCursorEpilogue - (kLegacyCursorRecenter + sizeof(replacement)));
+    std::memcpy(replacement + 1, &callOffset, sizeof(callOffset));
+    std::memcpy(replacement + 6, &jumpOffset, sizeof(jumpOffset));
+    ApplyPatch({kLegacyCursorRecenter, BYTE_SPAN(kLegacyCursorExpected), BYTE_SPAN(replacement), false});
+}
+
 template <size_t Count>
 bool ApplyPatchGroup(const Patch (&patches)[Count]) {
     bool appliedAll = true;
@@ -231,8 +282,6 @@ PatchConfig LoadPatchConfig() {
         iniPath, L"HighFrequencyCameraPosition", config.highFrequencyCameraPosition);
     config.highFrequencyViewmodel = BoolFromIni(
         iniPath, L"HighFrequencyViewmodel", config.highFrequencyViewmodel);
-    config.responsiveMovementDirection = BoolFromIni(iniPath, L"ResponsiveMovementDirection", false);
-    config.dpiAware = BoolFromIni(iniPath, L"DPIAware", config.dpiAware);
     config.borderlessFullscreen =
         BoolFromIni(iniPath, L"BorderlessFullscreen", config.borderlessFullscreen);
     config.forceDesktopResolution =
@@ -251,16 +300,10 @@ void ApplyBhdPatches() {
     if (imageBase != kImageBase) {
         return;
     }
-    locomotion_response::Install(config.responsiveMovementDirection);
     mouse_scaling_fix::Install(config.mouseScalingFix);
     mousescale_fix::Install(config.mousescaleFix);
     allow_high_resolution_fonts::Install(config.allowHighResolutionFonts);
     hud_layout::Install(config.hudLayoutMode);
-    camera_fov::Install(config.useCorrectAspectFov, config.highFrequencyCamera,
-                        config.highFrequencyCameraPosition);
-    high_frequency_viewmodel::Install(
-        (config.highFrequencyCamera || config.highFrequencyCameraPosition) && config.highFrequencyViewmodel);
-    dpi_awareness::Initialize(config.dpiAware);
     const bool borderlessInitialized =
         borderless_fullscreen::Initialize(config.borderlessFullscreen,
                                           config.forceDesktopResolution);
@@ -268,19 +311,24 @@ void ApplyBhdPatches() {
         config.borderlessFullscreen && borderlessInitialized);
 
     if (config.adaptiveScreenCenter) {
-        if (ApplyPatch(kDynamicResolutionCodeCavePatch)) {
-            ApplyPatch(kDynamicResolutionCorePatch);
-        }
+        InstallAdaptiveScreenCenter();
     }
     if (config.scaleCursorClipToResolution) {
         if (ApplyPatch(kInitialClipCursorCodeCavePatch) && ApplyPatch(kClipCursorCodeCavePatch)) {
             ApplyPatchGroup(kClipCursorPatches);
         }
     }
-    const bool rawInstalled =
-        raw_input::Install(config.rawMouseInput);
+    if (config.restoreCursorClip) {
+        cursor_clip::InstallGameHook();
+    }
+    const bool rawInstalled = config.rawMouseInput && raw_input::Install(true);
+    const bool cameraRotation = config.highFrequencyCamera && rawInstalled;
+    const bool cameraInstalled = camera_fov::Install(
+        config.useCorrectAspectFov, cameraRotation, config.highFrequencyCameraPosition);
+    high_frequency_viewmodel::Install(config.highFrequencyViewmodel && cameraInstalled &&
+                                      (cameraRotation || camera_position::IsEnabled()));
     game_window::Configure(
-        {config.rawMouseInput && rawInstalled, config.restoreCursorClip,
+        {rawInstalled, config.restoreCursorClip,
          config.borderlessFullscreen && borderlessInitialized,
          config.borderlessFullscreen && gammaInitialized,
          config.mouseScalingFix});

@@ -64,6 +64,8 @@ void SetEnabled(bool enabled) {
     std::memset(g_presentationCameraPose, 0, sizeof(g_presentationCameraPose));
 }
 
+bool IsRotationEnabled() { return g_enabled; }
+
 bool Apply(void* sourceCamera) {
     InterlockedExchange(&g_cameraPoseValid, 0);
     if (!g_enabled && !camera_position::IsEnabled()) return false;

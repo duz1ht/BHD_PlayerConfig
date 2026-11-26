@@ -21,6 +21,7 @@ constexpr uintptr_t kFastStep = 0x00A0339C;
 constexpr uintptr_t kSlowStep = 0x009F374C;
 constexpr uintptr_t kGameWindow = 0x00F654FC;
 constexpr uint32_t kEmptyCallback = 0x005382E0;
+constexpr DWORD kClockTimeoutMs = 250;
 
 uintptr_t g_base = 0;
 bool g_enabled = false;
@@ -93,7 +94,7 @@ void __cdecl CapturePhase(uint32_t remainder) {
         Invalidate();
         return;
     }
-    if (g_clock.valid && (now - g_clock.observedAt > 250 ||
+    if (g_clock.valid && (now - g_clock.observedAt > kClockTimeoutMs ||
                          fast - g_clock.fastStep > 64 || slow - g_clock.slowStep > 16)) {
         g_history.Reset();
     }
@@ -194,7 +195,7 @@ bool Apply(void* camera) {
     if (!g_enabled || camera == nullptr) return false;
     Identity identity;
     Position live, offset, result;
-    if (!g_clock.valid || GetTickCount() - g_clock.observedAt > 250 ||
+    if (!g_clock.valid || GetTickCount() - g_clock.observedAt > kClockTimeoutMs ||
         !EngineAllowed() || !ReadPlayer(&identity, &live)) { Invalidate(); return false; }
     const uint32_t step = g_history.Producer() == Cadence::Fast ? g_clock.fastStep : g_clock.slowStep;
     if (!g_history.GetOffset(identity, live, step, g_clock.remainder, g_clock.fastStep, &offset)) return false;
@@ -208,6 +209,10 @@ bool Apply(void* camera) {
     description[3] = result.z;
     return true;
 }
-uint32_t GetSimulationSerial() { return g_clock.slowStep; }
+bool TryGetSimulationSerial(uint32_t& serial) {
+    if (!g_enabled || !g_clock.valid || GetTickCount() - g_clock.observedAt > kClockTimeoutMs) return false;
+    serial = g_clock.slowStep;
+    return true;
+}
 uint32_t GetHistoryEpoch() { return g_history.Epoch(); }
 }  // namespace camera_position

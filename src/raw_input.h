@@ -2,6 +2,8 @@
 
 #include <windows.h>
 
+#include <cstdint>
+
 namespace raw_input {
 
 bool Install(bool enabled);
@@ -11,6 +13,6 @@ void HandleFocusLost();
 bool HandleFocusGained();
 void HandleDestroy();
 bool GetProjectedNativeMovement(LONG* x, LONG* y);
-unsigned long GetSimulationSerial();
+bool TryGetSimulationSerial(uint32_t& serial);
 
 }  // namespace raw_input

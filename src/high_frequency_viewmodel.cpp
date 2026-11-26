@@ -40,8 +40,9 @@ using BuildPoseMatrixFn = void(__cdecl*)(float*, int32_t*);
 struct PaletteHistory {
     const void* model = nullptr;
     bool ready = false;
-    unsigned long simulationSerial = 0;
+    uint32_t simulationSerial = 0;
     uint32_t positionEpoch = 0;
+    bool usesPositionClock = false;
     LARGE_INTEGER tickStart = {};
     int boneCount = 0;
     float previousRootRelative[16] = {};
@@ -137,25 +138,26 @@ void ConvertToLocalPalette(const float* worldPalette, int boneCount,
 }
 
 double UpdateHistory(PaletteHistory* history, const float* palette,
-                     const float rootRelative[16], int boneCount) {
+                     const float rootRelative[16], int boneCount,
+                     uint32_t serial, bool usesPositionClock) {
     LARGE_INTEGER now = {};
     QueryPerformanceCounter(&now);
     if (g_clockFrequency.QuadPart == 0) QueryPerformanceFrequency(&g_clockFrequency);
-    const unsigned long serial = camera_position::IsEnabled() ?
-        camera_position::GetSimulationSerial() : raw_input::GetSimulationSerial();
-    const uint32_t positionEpoch = camera_position::IsEnabled() ? camera_position::GetHistoryEpoch() : 0;
+    const uint32_t positionEpoch = usesPositionClock ? camera_position::GetHistoryEpoch() : 0;
     float captured[kMaxViewmodelBones * 16] = {};
     ConvertToLocalPalette(palette, boneCount, captured);
     const size_t paletteBytes = static_cast<size_t>(boneCount) * 16 * sizeof(float);
 
     if (!history->ready || history->boneCount != boneCount ||
-        history->positionEpoch != positionEpoch || serial - history->simulationSerial > 1) {
+        history->usesPositionClock != usesPositionClock || history->positionEpoch != positionEpoch ||
+        serial - history->simulationSerial > 1) {
         std::memcpy(history->previousRootRelative, rootRelative, sizeof(history->previousRootRelative));
         std::memcpy(history->currentRootRelative, rootRelative, sizeof(history->currentRootRelative));
         std::memcpy(history->previousLocal, captured, paletteBytes);
         std::memcpy(history->currentLocal, captured, paletteBytes);
         history->simulationSerial = serial;
         history->positionEpoch = positionEpoch;
+        history->usesPositionClock = usesPositionClock;
         history->tickStart = now;
         history->boneCount = boneCount;
         history->ready = true;
@@ -196,6 +198,15 @@ bool BuildPrivatePalette(void* model, const float* source, float* output) {
         static_cast<const unsigned char*>(model) + 0x10);
     if (boneCount <= 0 || boneCount > kMaxViewmodelBones) return false;
 
+    PaletteHistory* history = FindHistory(model);
+    uint32_t serial = 0;
+    const bool usesPositionClock = camera_position::TryGetSimulationSerial(serial);
+    if (!usesPositionClock &&
+        (!high_frequency_camera::IsRotationEnabled() || !raw_input::TryGetSimulationSerial(serial))) {
+        history->ready = false;
+        return false;
+    }
+
     float simulationCamera[16] = {};
     float presentationCamera[16] = {};
     if (!GetCurrentCameraMatrices(simulationCamera, presentationCamera)) return false;
@@ -208,8 +219,8 @@ bool BuildPrivatePalette(void* model, const float* source, float* output) {
     InvertRigidTransform(simulationCamera, inverseSimulationCamera);
     MultiplyMatrix(inverseSimulationCamera, source, rootRelative);
 
-    PaletteHistory* history = FindHistory(model);
-    const double alpha = UpdateHistory(history, source, rootRelative, boneCount);
+    const double alpha = UpdateHistory(history, source, rootRelative, boneCount,
+                                       serial, usesPositionClock);
     float interpolatedRootRelative[16] = {};
     InterpolateRigidTransform(history->previousRootRelative,
                               history->currentRootRelative,

@@ -28,12 +28,11 @@ struct Setting {
     bool recommended;
 };
 
-constexpr std::array<Setting, 15> kSettings{{
+constexpr std::array<Setting, 13> kSettings{{
     {L"BorderlessFullscreen", L"Borderless fullscreen", L"Runs the game in a borderless window covering the monitor.", true, false},
     {L"ForceDesktopResolution", L"Force desktop resolution", L"Uses the monitor resolution while borderless mode is enabled.", true, false},
     {L"UseCorrectAspectFOV", L"Correct aspect-ratio FOV", L"Corrects first-person FOV for widescreen render resolutions.", true, true},
-    {L"DPIAware", L"DPI awareness", L"Keeps window, monitor and cursor coordinates on the same scale.", true, true},
-    {L"AdaptiveScreenCenter", L"Adaptive screen center", L"Calculates screen center from the current resolution.", true, true},
+    {L"AdaptiveScreenCenter", L"Adaptive screen center", L"Uses the game window center for the original mouse input routine.", true, true},
     {L"RawMouseInput", L"Raw mouse input", L"Uses Windows Raw Input for relative mouse movement.", true, true},
     {L"MouseScalingFix", L"Mouse scaling fix", L"Corrects fixed-point rounding, especially while scoped.", true, true},
     {L"MousescaleFix", L"Mousescale fix", L"Makes queries safe and preserves command changes across mission loads.", true, true},
@@ -43,7 +42,6 @@ constexpr std::array<Setting, 15> kSettings{{
     {L"HighFrequencyCameraPosition", L"High-frequency camera position", L"Smooths first-person camera movement between game updates.", true, false},
     {L"HighFrequencyViewmodel", L"High-frequency viewmodel", L"Makes first-person hands and weapons follow the smooth camera.", true, false},
     {L"AllowHighResolutionFonts", L"Allow high-resolution fonts", L"Loads compatible FNT0 atlases from 256 through 4096 pixels.", true, true},
-    {L"ResponsiveMovementDirection", L"Faster direction changes (experimental)", L"Changes physical movement while grounded. Multiplayer unvalidated.", false, false},
 }};
 
 struct SettingCategory {
@@ -52,12 +50,11 @@ struct SettingCategory {
     size_t settingCount;
 };
 
-constexpr std::array<SettingCategory, 5> kCategories{{
-    {L"Display", 0, 5},
-    {L"Mouse && Cursor", 5, 5},
-    {L"Camera && Viewmodel", 10, 3},
-    {L"Fonts", 13, 1},
-    {L"Movement (experimental)", 14, 1},
+constexpr std::array<SettingCategory, 4> kCategories{{
+    {L"Display", 0, 4},
+    {L"Mouse && Cursor", 4, 5},
+    {L"Camera && Viewmodel", 9, 3},
+    {L"Fonts", 12, 1},
 }};
 
 constexpr int kCategoryTopPadding = 26;
@@ -69,7 +66,6 @@ HWND gTab = nullptr;
 HWND gSettingsPage = nullptr;
 HWND gCrosshairPage = nullptr;
 HWND gHudPage = nullptr;
-HWND gPlaceholderPage = nullptr;
 HWND gStatus = nullptr;
 HFONT gFont = nullptr;
 HFONT gBoldFont = nullptr;
@@ -148,18 +144,12 @@ void ShowSelectedTab() {
     ShowWindow(gSettingsPage, selected == 0 ? SW_SHOW : SW_HIDE);
     ShowWindow(gCrosshairPage, selected == 1 ? SW_SHOW : SW_HIDE);
     ShowWindow(gHudPage, selected == 2 ? SW_SHOW : SW_HIDE);
-    ShowWindow(gPlaceholderPage, selected == 3 ? SW_SHOW : SW_HIDE);
     ShowWindow(gStatus, selected == 0 ? SW_SHOW : SW_HIDE);
     ShowWindow(GetDlgItem(window, kDefaultsId), selected == 0 ? SW_SHOW : SW_HIDE);
-    ShowWindow(GetDlgItem(window, kReloadId), selected <= 2 ? SW_SHOW : SW_HIDE);
-    ShowWindow(GetDlgItem(window, kSaveId), selected <= 2 ? SW_SHOW : SW_HIDE);
     SetWindowTextW(GetDlgItem(window, kReloadId),
                    selected == 1 ? L"Load Current Crosshair" : L"Reload");
     SetWindowTextW(GetDlgItem(window, kSaveId),
                    selected == 1 ? L"Apply Crosshair" : L"Save");
-    if (selected == 3)
-        SetWindowTextW(GetDlgItem(gPlaceholderPage, 200),
-                       L"Fonts settings will appear here when those features are added.");
 }
 
 void Layout(HWND window) {
@@ -180,8 +170,6 @@ void Layout(HWND window) {
     MoveWindow(gCrosshairPage, pageRect.left, pageRect.top,
                pageRect.right - pageRect.left, pageRect.bottom - pageRect.top, TRUE);
     MoveWindow(gHudPage, pageRect.left, pageRect.top,
-               pageRect.right - pageRect.left, pageRect.bottom - pageRect.top, TRUE);
-    MoveWindow(gPlaceholderPage, pageRect.left, pageRect.top,
                pageRect.right - pageRect.left, pageRect.bottom - pageRect.top, TRUE);
 
     const bool crosshair = TabCtrl_GetCurSel(gTab) == 1;
@@ -365,19 +353,17 @@ LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
             if (!gBoldFont) gBoldFont = gFont;
             gTab = MakeControl(window, WC_TABCONTROLW, L"", WS_TABSTOP | WS_CLIPSIBLINGS,
                                0, 0, 0, 0, kTabId);
-            const wchar_t* tabs[] = {L"Settings", L"Crosshair", L"HUD", L"Fonts"};
-            for (int i = 0; i < 4; ++i) {
+            constexpr std::array tabs{L"Settings", L"Crosshair", L"HUD"};
+            for (size_t index = 0; index < tabs.size(); ++index) {
                 TCITEMW item{};
                 item.mask = TCIF_TEXT;
-                item.pszText = const_cast<wchar_t*>(tabs[i]);
-                TabCtrl_InsertItem(gTab, i, &item);
+                item.pszText = const_cast<wchar_t*>(tabs[index]);
+                TabCtrl_InsertItem(gTab, static_cast<int>(index), &item);
             }
             gSettingsPage = MakeControl(window, L"STATIC", L"", WS_VSCROLL,
                                         0, 0, 0, 0, 0);
             gCrosshairPage = crosshair_editor::Create(window, gFont, gBoldFont);
             gHudPage = hud_editor::Create(window, gFont, gBoldFont);
-            gPlaceholderPage = MakeControl(window, L"STATIC", L"", 0, 0, 0, 0, 0);
-            MakeControl(gPlaceholderPage, L"STATIC", L"", SS_CENTER, 80, 190, 600, 50, 200);
             CreateSettingsControls(gSettingsPage);
             gStatus = MakeControl(window, L"STATIC", L"", SS_LEFT, 0, 0, 0, 0);
             MakeControl(window, L"BUTTON", L"Defaults", BS_PUSHBUTTON | WS_TABSTOP, 0, 0, 0, 0, kDefaultsId);

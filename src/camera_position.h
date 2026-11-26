@@ -7,6 +7,6 @@ bool Install(bool enabled);
 bool IsEnabled();
 // Applies XYZ only to a private camera description. Never writes actor memory.
 bool Apply(void* camera);
-uint32_t GetSimulationSerial();
+bool TryGetSimulationSerial(uint32_t& serial);
 uint32_t GetHistoryEpoch();
 }  // namespace camera_position

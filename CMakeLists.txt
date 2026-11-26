@@ -2,11 +2,11 @@ cmake_minimum_required(VERSION 3.15)
 project(BHD_QoL_WinMM LANGUAGES CXX)
 
 add_library(winmm SHARED src/winmm_proxy.cpp src/bhd_patches.cpp src/game_window.cpp
-    src/cursor_clip.cpp src/cursor_visibility.cpp src/dpi_awareness.cpp
+    src/cursor_clip.cpp src/cursor_visibility.cpp
     src/borderless_fullscreen.cpp src/borderless_gamma.cpp
     src/raw_input.cpp src/raw_input_math.cpp src/mouse_scaling_fix.cpp src/mousescale_fix.cpp src/camera_fov.cpp src/camera_fov_math.cpp
     src/high_frequency_camera.cpp src/high_frequency_camera_math.cpp
-    src/camera_position.cpp src/camera_position_math.cpp src/locomotion_response.cpp
+    src/camera_position.cpp src/camera_position_math.cpp
     src/high_frequency_viewmodel.cpp src/high_frequency_viewmodel_math.cpp
     src/allow_high_resolution_fonts.cpp src/fnt_layout.cpp
     src/hud_layout.cpp src/hud_layout_math.cpp src/hud_overlays.cpp
@@ -51,6 +51,11 @@ file(GENERATE
 
 include(CTest)
 if(BUILD_TESTING)
+    add_executable(cursor_clip_recovery_test tests/cursor_clip_recovery_test.cpp)
+    target_compile_features(cursor_clip_recovery_test PRIVATE cxx_std_17)
+    target_compile_definitions(cursor_clip_recovery_test PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
+    add_test(NAME cursor_clip_recovery COMMAND cursor_clip_recovery_test)
+
     add_executable(hud_overlays_test tests/hud_overlays_test.cpp src/hud_layout_math.cpp)
     target_include_directories(hud_overlays_test PRIVATE src)
     target_compile_features(hud_overlays_test PRIVATE cxx_std_17)
@@ -63,13 +68,6 @@ if(BUILD_TESTING)
     target_compile_features(mousescale_fix_test PRIVATE cxx_std_17)
     target_compile_definitions(mousescale_fix_test PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
     add_test(NAME mousescale_fix COMMAND mousescale_fix_test)
-    add_executable(locomotion_response_test tests/locomotion_response_test.cpp)
-    target_compile_features(locomotion_response_test PRIVATE cxx_std_17)
-    target_compile_definitions(locomotion_response_test PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
-    add_test(NAME locomotion_response COMMAND locomotion_response_test)
-    foreach(mode signature write_failure)
-        add_test(NAME locomotion_response_${mode} COMMAND locomotion_response_test ${mode})
-    endforeach()
     add_executable(fnt_layout_test tests/fnt_layout_test.cpp src/fnt_layout.cpp)
     target_include_directories(fnt_layout_test PRIVATE src)
     target_compile_features(fnt_layout_test PRIVATE cxx_std_17)
@@ -145,6 +143,12 @@ if(BUILD_TESTING)
     target_include_directories(high_frequency_viewmodel_math_test PRIVATE src)
     target_compile_features(high_frequency_viewmodel_math_test PRIVATE cxx_std_17)
     add_test(NAME high_frequency_viewmodel_math COMMAND high_frequency_viewmodel_math_test)
+
+    add_executable(high_frequency_viewmodel_test
+        tests/high_frequency_viewmodel_test.cpp src/high_frequency_viewmodel_math.cpp)
+    target_compile_features(high_frequency_viewmodel_test PRIVATE cxx_std_17)
+    target_compile_definitions(high_frequency_viewmodel_test PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
+    add_test(NAME high_frequency_viewmodel COMMAND high_frequency_viewmodel_test)
 
     add_executable(pff_archive_test tests/pff_archive_test.cpp
         src/pff_archive.cpp src/crosshair_tga.cpp)

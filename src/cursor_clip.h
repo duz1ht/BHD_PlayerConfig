@@ -4,6 +4,7 @@
 
 namespace cursor_clip {
 
+void InstallGameHook();
 void Initialize(bool enabled, HWND window);
 void HandleFocusLost();
 bool HandleFocusGained();

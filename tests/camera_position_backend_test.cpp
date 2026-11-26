@@ -93,6 +93,8 @@ int main(int argc, char** argv) {
     }
     Check(!Install(false) && !IsEnabled());
     Check(Install(true) && IsEnabled() && Install(true));
+    uint32_t serial = 0;
+    Check(!TryGetSimulationSerial(serial));
     const uintptr_t actor = Address(0x00840000);
     WriteGame(0x0096C290, actor); WriteGame(0x00715900, actor); WriteGame(0x007F2DD4, actor);
     WriteGame(0x009F20DC, 1); WriteGame(0x00F654FC, 0x1234);
@@ -136,7 +138,7 @@ int main(int argc, char** argv) {
     WriteGame(0x007C72BC, 1); Invoke(Address(0x004BF08F), actor, 32); Check(!Apply(camera));
     WriteGame(0x007C72BC, 0);
     fast(19, {1200, 1300, 1400}); fast(20, {1300, 1400, 1500});
-    g_now += 251; Check(!Apply(camera));
+    g_now += 251; Check(!TryGetSimulationSerial(serial)); Check(!Apply(camera));
 
     // Switch to a slow producer; its logic counter increments BEFORE capture.
     Write(actor + 0x228, 0);
@@ -146,7 +148,7 @@ int main(int argc, char** argv) {
     WriteGame(0x00A0339C, 2); Invoke(Address(0x004BF08F), actor, 32);
     camera[1] = 2010; camera[2] = 4020; camera[3] = 6030;
     Check(Apply(camera) && camera[1] == 1385 && camera[2] == 2770 && camera[3] == 4155);
-    Check(GetSimulationSerial() == 31);
+    Check(TryGetSimulationSerial(serial) && serial == 31);
     WriteGame(0x0096C290, 0xDEADBEEF); WriteGame(0x007F2DD4, 0xDEADBEEF);
     Check(!Apply(camera)); // must reject before dereferencing an out-of-pool pointer
     VirtualFree(image, 0, MEM_RELEASE);
