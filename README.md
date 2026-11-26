@@ -1,4 +1,4 @@
-# BHD QoL
+# BHD Player Config
 
 A `winmm.dll` proxy with quality-of-life improvements for **Delta Force: Black Hawk Down** (`dfbhd.exe`). The DLL forwards Windows multimedia calls to the original 32-bit system WinMM library and applies only the options enabled in `bhd_player_config.ini`.
 
@@ -26,8 +26,8 @@ The application includes **Settings**, **Crosshair**, and **HUD** tabs. Settings
 
 The Crosshair tab works directly with `coma20mm.tga` inside `localres.pff`, which must be beside `BHD Player Config.exe`. **Load Current Crosshair** reads the current image from the archive and recognizes matching generated choices; other images appear as a custom/current crosshair. Applying a choice rebuilds a temporary PFF beside the original, verifies the replacement and then replaces `localres.pff`; it does not create a separate TGA or installer. Close the game before applying so it is not holding the archive open. The configurator supports the BHD PFF3 layout with 36-byte entry records and preserves the other archive entries and trailing data.
 
-When upgrading from the old BHD QoL proxy, remove **this project's old**
-`dinput8.dll` before installing `winmm.dll`, so the patches are not applied twice.
+When upgrading from this project's earlier `dinput8.dll` proxy, remove that DLL
+before installing `winmm.dll`, so the patches are not applied twice.
 Copy your previous settings from `dinput8.ini` to `bhd_player_config.ini`. The new proxy does
 not read `dinput8.ini`; another mod can use that filename independently. A
 `dinput8.dll` supplied by another mod can coexist with this proxy, although mods
@@ -40,41 +40,25 @@ that patch the same game code still require compatibility testing. Only one
 
 | Option | Default | Description |
 | --- | :---: | --- |
-| `BorderlessFullscreen` | `1` | Runs the game in a borderless window that covers the entire monitor. |
-| `ForceDesktopResolution` | `1` | With `BorderlessFullscreen=1`, uses the monitor resolution as the internal render resolution. At `0`, the resolution selected in the game is stretched to fill the screen. Has no effect when borderless mode is disabled. |
 | `UseCorrectAspectFOV` | `1` | Corrects the field of view for internal render resolutions wider than 4:3 without changing zoom, scopes, or special cameras. |
-| `HUDLayoutMode` | `1` | Applies to the HUD and in-game menus/windows (Armory, G briefing/objectives, F1 shortcuts, K players/kill list). `0`: original scaling; `1`: original scaling with native-size crosshair; `2`: centered 4:3 HUD and windows; `3`: widescreen-anchored HUD groups with centered 4:3 windows. The compact player/team counter stays anchored to the right edge in modes 2/3. Modes 1-3 keep the crosshair at its native pixel size. |
-| `AllowHighResolutionFonts` | `1` | Detects the atlas dimensions of each loaded FNT0 file independently, allowing stock and higher-resolution fonts to coexist. Does not create or replace font assets. |
-| `RawMouseInput` **🧪 Experimental** | `1` | Uses Windows Raw Input for more reliable relative mouse input while preserving the game's sensitivity, inversion, and bindings. |
-| `HighFrequencyCamera` **🧪 Experimental** | `1` | Applies Raw Input movement that arrived after the latest game update to the local first-person presentation camera. Requires `RawMouseInput=1`. |
-| `HighFrequencyCameraPosition` | `1` | Interpolates on-foot first-person camera XYZ to smooth static scenery while walking/strafing. Independent of Raw Input and mouse rotation. Adds up to one movement update of visual position lag. |
-| `HighFrequencyViewmodel` **🧪 Experimental** | `1` | Makes the local first-person weapon and hands follow the presentation camera, with interpolation of weapon-relative motion and bones. Requires `HighFrequencyCameraPosition=1` or both `HighFrequencyCamera=1` and `RawMouseInput=1`. |
 | `MouseScalingFix` | `1` | Fixes rounding of small mouse movements, especially noticeable when using scoped weapons. |
 | `MousescaleFix` | `1` | Makes a bare `mousescale` query safe and preserves `mousescale N` changes across mission loads. |
 | `AdaptiveScreenCenter` | `1` | Uses the current game window's client center for cursor recentering and relative movement when the game uses its original mouse input routine. |
 | `ScaleCursorClipToResolution` | `1` | Uses the current resolution when confining the cursor instead of fixed 640x480 bounds. |
 | `RestoreCursorClip` | `1` | Uses the full game client area when the active game confines the cursor. Restores confinement after Alt+Tab and window or display changes while honoring explicit releases. Works independently of `RawMouseInput`. |
 
-Complete default configuration:
+#### Experimental
 
-```ini
-[PatchGroups]
-BorderlessFullscreen=1
-ForceDesktopResolution=1
-UseCorrectAspectFOV=1
-HUDLayoutMode=1
-AllowHighResolutionFonts=1
-RawMouseInput=1
-HighFrequencyCamera=1
-HighFrequencyCameraPosition=1
-HighFrequencyViewmodel=1
-MouseScalingFix=1
-MousescaleFix=1
-AdaptiveScreenCenter=1
-ScaleCursorClipToResolution=1
-RestoreCursorClip=1
-
-```
+| Option | Default | Description |
+| --- | :---: | --- |
+| `BorderlessFullscreen` | `1` | Runs the game in a borderless window that covers the entire monitor. |
+| `ForceDesktopResolution` | `1` | With `BorderlessFullscreen=1`, uses the monitor resolution as the internal render resolution. At `0`, the resolution selected in the game is stretched to fill the screen. Has no effect when borderless mode is disabled. |
+| `HUDLayoutMode` | `1` | Applies to the HUD and in-game menus/windows (Armory, G briefing/objectives, F1 shortcuts, K players/kill list). `0`: original scaling; `1`: original scaling with native-size crosshair; `2`: centered 4:3 HUD and windows; `3`: widescreen-anchored HUD groups with centered 4:3 windows. The compact player/team counter stays anchored to the right edge in modes 2/3. Modes 1-3 keep the crosshair at its native pixel size. |
+| `AllowHighResolutionFonts` | `1` | Detects the atlas dimensions of each loaded FNT0 file independently, allowing stock and higher-resolution fonts to coexist. Does not create or replace font assets. |
+| `RawMouseInput` | `1` | Uses Windows Raw Input for more reliable relative mouse input while preserving the game's sensitivity, inversion, and bindings. |
+| `HighFrequencyCamera` | `1` | Applies Raw Input movement that arrived after the latest game update to the local first-person presentation camera. Requires `RawMouseInput=1`. |
+| `HighFrequencyCameraPosition` | `1` | Interpolates on-foot first-person camera XYZ to smooth static scenery while walking/strafing. Independent of Raw Input and mouse rotation. Adds up to one movement update of visual position lag. |
+| `HighFrequencyViewmodel` | `1` | Makes the local first-person weapon and hands follow the presentation camera, with interpolation of weapon-relative motion and bones. Requires `HighFrequencyCameraPosition=1` or both `HighFrequencyCamera=1` and `RawMouseInput=1`. |
 
 `AllowHighResolutionFonts` accepts square, 32-bit FNT0 pages of 256, 512, 1024,
 2048 or 4096 pixels per side, with up to 16 equally sized pages per file. A
@@ -137,6 +121,27 @@ weapon-relative motion and bone transforms in a private palette. Position
 smoothing is shared with the weapon, including when raw mouse rotation is off.
 History is rebased across position discontinuities. Weapon simulation, firing
 and networking remain native.
+
+#### Complete default configuration
+
+```ini
+[PatchGroups]
+BorderlessFullscreen=1
+ForceDesktopResolution=1
+UseCorrectAspectFOV=1
+HUDLayoutMode=1
+AllowHighResolutionFonts=1
+RawMouseInput=1
+HighFrequencyCamera=1
+HighFrequencyCameraPosition=1
+HighFrequencyViewmodel=1
+MouseScalingFix=1
+MousescaleFix=1
+AdaptiveScreenCenter=1
+ScaleCursorClipToResolution=1
+RestoreCursorClip=1
+
+```
 
 ## Building
 
