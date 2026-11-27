@@ -17,6 +17,7 @@
 #include "camera_fov.h"
 #include "camera_position.h"
 #include "high_frequency_viewmodel.h"
+#include "remote_player_interpolation.h"
 #include "allow_high_resolution_fonts.h"
 #include "hud_layout.h"
 
@@ -47,6 +48,8 @@ struct PatchConfig {
     bool highFrequencyCameraPosition = true;
     bool highFrequencyCameraPositionExtrapolation = false;
     bool highFrequencyViewmodel = true;
+    bool remotePlayerInterpolation = false;
+    bool remotePlayerAnimationInterpolation = false;
     bool borderlessFullscreen = true;
     bool forceDesktopResolution = true;
     bool allowHighResolutionFonts = true;
@@ -285,6 +288,10 @@ PatchConfig LoadPatchConfig() {
         iniPath, L"HighFrequencyCameraPositionExtrapolation", config.highFrequencyCameraPositionExtrapolation);
     config.highFrequencyViewmodel = BoolFromIni(
         iniPath, L"HighFrequencyViewmodel", config.highFrequencyViewmodel);
+    config.remotePlayerInterpolation =
+        BoolFromIni(iniPath, L"RemotePlayerInterpolation", config.remotePlayerInterpolation);
+    config.remotePlayerAnimationInterpolation = BoolFromIni(
+        iniPath, L"RemotePlayerAnimationInterpolation", config.remotePlayerAnimationInterpolation);
     config.borderlessFullscreen =
         BoolFromIni(iniPath, L"BorderlessFullscreen", config.borderlessFullscreen);
     config.forceDesktopResolution =
@@ -304,6 +311,8 @@ void ApplyBhdPatches() {
         return;
     }
     mouse_scaling_fix::Install(config.mouseScalingFix);
+    remote_player_interpolation::Install(config.remotePlayerInterpolation,
+                                         config.remotePlayerAnimationInterpolation);
     mousescale_fix::Install(config.mousescaleFix);
     allow_high_resolution_fonts::Install(config.allowHighResolutionFonts);
     hud_layout::Install(config.hudLayoutMode);

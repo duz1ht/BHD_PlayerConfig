@@ -8,6 +8,7 @@ add_library(winmm SHARED src/winmm_proxy.cpp src/bhd_patches.cpp src/game_window
     src/high_frequency_camera.cpp src/high_frequency_camera_math.cpp
     src/camera_position.cpp src/camera_position_math.cpp
     src/high_frequency_viewmodel.cpp src/high_frequency_viewmodel_math.cpp
+    src/remote_player_interpolation.cpp
     src/allow_high_resolution_fonts.cpp src/fnt_layout.cpp
     src/hud_layout.cpp src/hud_layout_math.cpp src/hud_overlays.cpp
     src/pixel_perfect_crosshair.cpp src/pixel_perfect_crosshair_math.cpp
@@ -151,6 +152,12 @@ if(BUILD_TESTING)
     target_compile_features(high_frequency_viewmodel_test PRIVATE cxx_std_17)
     target_compile_definitions(high_frequency_viewmodel_test PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
     add_test(NAME high_frequency_viewmodel COMMAND high_frequency_viewmodel_test)
+
+    add_executable(remote_player_interpolation_test tests/remote_player_interpolation_test.cpp
+        src/camera_position_math.cpp src/high_frequency_viewmodel_math.cpp)
+    target_compile_features(remote_player_interpolation_test PRIVATE cxx_std_17)
+    target_compile_definitions(remote_player_interpolation_test PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
+    add_test(NAME remote_player_interpolation COMMAND remote_player_interpolation_test)
 
     add_executable(pff_archive_test tests/pff_archive_test.cpp
         src/pff_archive.cpp src/crosshair_tga.cpp)
