@@ -45,6 +45,7 @@ struct PatchConfig {
     bool useCorrectAspectFov = true;
     bool highFrequencyCamera = true;
     bool highFrequencyCameraPosition = true;
+    bool highFrequencyCameraPositionExtrapolation = false;
     bool highFrequencyViewmodel = true;
     bool borderlessFullscreen = true;
     bool forceDesktopResolution = true;
@@ -280,6 +281,8 @@ PatchConfig LoadPatchConfig() {
         BoolFromIni(iniPath, L"HighFrequencyCamera", config.highFrequencyCamera);
     config.highFrequencyCameraPosition = BoolFromIni(
         iniPath, L"HighFrequencyCameraPosition", config.highFrequencyCameraPosition);
+    config.highFrequencyCameraPositionExtrapolation = BoolFromIni(
+        iniPath, L"HighFrequencyCameraPositionExtrapolation", config.highFrequencyCameraPositionExtrapolation);
     config.highFrequencyViewmodel = BoolFromIni(
         iniPath, L"HighFrequencyViewmodel", config.highFrequencyViewmodel);
     config.borderlessFullscreen =
@@ -323,8 +326,14 @@ void ApplyBhdPatches() {
     }
     const bool rawInstalled = config.rawMouseInput && raw_input::Install(true);
     const bool cameraRotation = config.highFrequencyCamera && rawInstalled;
+    auto positionMode = camera_position::Mode::Disabled;
+    if (config.highFrequencyCameraPositionExtrapolation) {
+        positionMode = camera_position::Mode::Extrapolation;
+    } else if (config.highFrequencyCameraPosition) {
+        positionMode = camera_position::Mode::Interpolation;
+    }
     const bool cameraInstalled = camera_fov::Install(
-        config.useCorrectAspectFov, cameraRotation, config.highFrequencyCameraPosition);
+        config.useCorrectAspectFov, cameraRotation, positionMode);
     high_frequency_viewmodel::Install(config.highFrequencyViewmodel && cameraInstalled &&
                                       (cameraRotation || camera_position::IsEnabled()));
     game_window::Configure(

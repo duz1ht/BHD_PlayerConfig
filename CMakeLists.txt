@@ -95,9 +95,11 @@ if(BUILD_TESTING)
     target_compile_definitions(camera_position_backend_test PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
     # The backend test uses a synthetic module image and controlled OS state.
     add_test(NAME camera_position_backend COMMAND camera_position_backend_test)
+    add_test(NAME camera_position_extrapolation COMMAND camera_position_backend_test extrapolate)
     add_test(NAME camera_position_signature COMMAND camera_position_backend_test signature)
     add_test(NAME camera_position_rollback COMMAND camera_position_backend_test rollback)
-    set_tests_properties(camera_position_backend camera_position_signature camera_position_rollback PROPERTIES TIMEOUT 20)
+    set_tests_properties(camera_position_backend camera_position_extrapolation
+        camera_position_signature camera_position_rollback PROPERTIES TIMEOUT 20)
     add_executable(winmm_proxy_test tests/winmm_proxy_test.cpp)
     target_include_directories(winmm_proxy_test PRIVATE src)
     target_compile_features(winmm_proxy_test PRIVATE cxx_std_17)

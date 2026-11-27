@@ -33,6 +33,10 @@ int main() {
     Check(camera == Position{1200, 2300, 3200}); // preserve native eye/head offset
     Check(history.GetOffset(key, {300, 400, 100}, 11, 0, 11, &offset));
     Check(offset == Position{-200, -200, 200});
+    Check(history.GetOffset(key, {300, 400, 100}, 11, 0, 11, &offset, true));
+    Check(offset == Position{});
+    Check(history.GetOffset(key, {300, 400, 100}, 11, 32, 11, &offset, true));
+    Check(offset == Position{100, 100, -100});
 
     // A duplicate capture updates current, never shifts previous twice.
     history.Observe(key, {500, 600, 100}, 11, Cadence::Fast);
@@ -46,6 +50,8 @@ int main() {
     history.Observe(key, {2000, 0, 0}, 21, Cadence::Slow);
     Check(history.GetOffset(key, {2000, 0, 0}, 21, 32, 2, &offset));
     Check(offset == Position{-625, 0, 0});
+    Check(history.GetOffset(key, {2000, 0, 0}, 21, 32, 2, &offset, true));
+    Check(offset == Position{375, 0, 0});
     Identity other = key;
     other.logicalId++;
     Check(!history.GetOffset(other, {2000, 0, 0}, 21, 32, 2, &offset));

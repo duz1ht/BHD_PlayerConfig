@@ -58,7 +58,8 @@ that patch the same game code still require compatibility testing. Only one
 | `RawMouseInput` | `1` | Uses Windows Raw Input for more reliable relative mouse input while preserving the game's sensitivity, inversion, and bindings. |
 | `HighFrequencyCamera` | `1` | Applies Raw Input movement that arrived after the latest game update to the local first-person presentation camera. Requires `RawMouseInput=1`. |
 | `HighFrequencyCameraPosition` | `1` | Interpolates on-foot first-person camera XYZ to smooth static scenery while walking/strafing. Independent of Raw Input and mouse rotation. Adds up to one movement update of visual position lag. |
-| `HighFrequencyViewmodel` | `1` | Makes the local first-person weapon and hands follow the presentation camera, with interpolation of weapon-relative motion and bones. Requires `HighFrequencyCameraPosition=1` or both `HighFrequencyCamera=1` and `RawMouseInput=1`. |
+| `HighFrequencyCameraPositionExtrapolation` | `0` | Predicts the first-person camera position using the last movement step. Takes precedence over `HighFrequencyCameraPosition`. |
+| `HighFrequencyViewmodel` | `1` | Makes the local first-person weapon and hands follow the presentation camera, with interpolation of weapon-relative motion and bones. Requires either camera position option, or both `HighFrequencyCamera=1` and `RawMouseInput=1`. |
 
 `AllowHighResolutionFonts` accepts square, 32-bit FNT0 pages of 256, 512, 1024,
 2048 or 4096 pixels per side, with up to 16 equally sized pages per file. A
@@ -99,22 +100,26 @@ simulation consumes each movement once through its original path. The feature
 currently applies to the local player in first person. Third-person, vehicle,
 and spectator cameras retain their native behavior.
 
-`HighFrequencyCameraPosition` captures the local player's position after verified
-native movement producers and interpolates XYZ using the game's render phase.
-This smooths the apparent movement of fixed scenery such as poles and walls
-while strafing or walking diagonally. It leaves mouse yaw/pitch on the existing
-Raw Input path. Only the private camera description used for rendering changes;
-map assets, actor positions, collision, firing and networking retain their native
-state. Native eye-height and camera offsets are preserved.
+Both camera position options use the last two local movement samples and the
+game's render phase to smooth on-foot first-person movement. They adjust the
+rendered camera position and preserve native eye-height and camera offsets.
+Both work independently of `RawMouseInput` and `HighFrequencyCamera`.
 
-The option operates independently of `RawMouseInput` and `HighFrequencyCamera`.
-It adds up to one movement interval of visual position lag: normally 4 ms for
-the fast producer, or 16 ms for a supported slow producer. Disable it with
-`HighFrequencyCameraPosition=0` to retain native camera translation. It does not
-interpolate other players/vehicles, third-person cameras or skeletal animations
-of world objects. Pauses, focus loss, target/mount changes, teleports, clock
-discontinuities and unobserved actor motion invalidate its history. Unknown
-executable bytes disable the option before any of its three hooks are written.
+| Test mode | `HighFrequencyCameraPosition` | `HighFrequencyCameraPositionExtrapolation` |
+| --- | :---: | :---: |
+| Interpolation (default) | `1` | `0` |
+| Extrapolation | `0` | `1` |
+| Native camera movement | `0` | `0` |
+
+Restart the game after switching modes. Interpolation adds up to one movement
+step of visual delay, normally 4 ms on the fast path or 16 ms on the supported
+slow path. Extrapolation projects forward for less than one step. It can overshoot
+when you stop, reverse direction or hit a wall. If both options are enabled, the
+game uses extrapolation.
+
+Pauses, focus loss, target/mount changes, teleports, clock discontinuities and
+unobserved actor motion invalidate the motion history. Installation checks all
+three hook locations before writing any of them.
 
 `HighFrequencyViewmodel` combines the presentation camera with interpolated
 weapon-relative motion and bone transforms in a private palette. Position
@@ -134,6 +139,7 @@ AllowHighResolutionFonts=1
 RawMouseInput=1
 HighFrequencyCamera=1
 HighFrequencyCameraPosition=1
+HighFrequencyCameraPositionExtrapolation=0
 HighFrequencyViewmodel=1
 MouseScalingFix=1
 MousescaleFix=1

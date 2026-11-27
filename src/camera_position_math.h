@@ -22,7 +22,8 @@ public:
     void Reset();
     void Observe(const Identity& identity, Position position, uint32_t step, Cadence cadence);
     bool GetOffset(const Identity& identity, Position live, uint32_t step,
-                   uint32_t remainder, uint32_t fastStep, Position* output);
+                   uint32_t remainder, uint32_t fastStep, Position* output,
+                   bool extrapolate = false);
     uint32_t Epoch() const { return epoch_; }
     Cadence Producer() const { return cadence_; }
 private:

@@ -28,7 +28,7 @@ struct Setting {
     bool recommended;
 };
 
-constexpr std::array<Setting, 13> kSettings{{
+constexpr std::array<Setting, 14> kSettings{{
     {L"BorderlessFullscreen", L"Borderless fullscreen", L"Runs the game in a borderless window covering the monitor.", true, false},
     {L"ForceDesktopResolution", L"Force desktop resolution", L"Uses the monitor resolution while borderless mode is enabled.", true, false},
     {L"UseCorrectAspectFOV", L"Correct aspect-ratio FOV", L"Corrects first-person FOV for widescreen render resolutions.", true, true},
@@ -39,7 +39,8 @@ constexpr std::array<Setting, 13> kSettings{{
     {L"ScaleCursorClipToResolution", L"Scale cursor confinement", L"Uses the current resolution for cursor confinement bounds.", true, true},
     {L"RestoreCursorClip", L"Restore cursor confinement", L"Restores confinement after focus, display or window changes.", true, true},
     {L"HighFrequencyCamera", L"High-frequency camera rotation", L"Applies recent Raw Input to the presentation camera.", true, false},
-    {L"HighFrequencyCameraPosition", L"High-frequency camera position", L"Smooths first-person camera movement between game updates.", true, false},
+    {L"HighFrequencyCameraPosition", L"Camera position interpolation", L"Smooths first-person movement between the last two game updates.", true, false},
+    {L"HighFrequencyCameraPositionExtrapolation", L"Camera position extrapolation", L"Predicts first-person movement between updates. Takes precedence over interpolation.", false, false},
     {L"HighFrequencyViewmodel", L"High-frequency viewmodel", L"Makes first-person hands and weapons follow the smooth camera.", true, false},
     {L"AllowHighResolutionFonts", L"Allow high-resolution fonts", L"Loads compatible FNT0 atlases from 256 through 4096 pixels.", true, true},
 }};
@@ -53,8 +54,8 @@ struct SettingCategory {
 constexpr std::array<SettingCategory, 4> kCategories{{
     {L"Display", 0, 4},
     {L"Mouse && Cursor", 4, 5},
-    {L"Camera && Viewmodel", 9, 3},
-    {L"Fonts", 12, 1},
+    {L"Camera && Viewmodel", 9, 4},
+    {L"Fonts", 13, 1},
 }};
 
 constexpr int kCategoryTopPadding = 26;

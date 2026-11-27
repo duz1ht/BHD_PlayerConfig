@@ -150,15 +150,16 @@ bool InstallHook(unsigned char *hook) {
 }
 } // namespace
 
-bool Install(bool enabled, bool highFrequencyCameraEnabled, bool cameraPositionEnabled) {
+bool Install(bool enabled, bool highFrequencyCameraEnabled,
+             camera_position::Mode cameraPositionMode) {
     g_fovEnabled = enabled;
     high_frequency_camera::SetEnabled(false);
-    if (!enabled && !highFrequencyCameraEnabled && !cameraPositionEnabled) {
+    if (!enabled && !highFrequencyCameraEnabled && cameraPositionMode == camera_position::Mode::Disabled) {
         return false;
     }
     if (g_installed) {
         high_frequency_camera::SetEnabled(highFrequencyCameraEnabled);
-        camera_position::Install(cameraPositionEnabled);
+        camera_position::Install(cameraPositionMode);
         return true;
     }
 
@@ -174,7 +175,7 @@ bool Install(bool enabled, bool highFrequencyCameraEnabled, bool cameraPositionE
 
     g_installed = true;
     high_frequency_camera::SetEnabled(highFrequencyCameraEnabled);
-    camera_position::Install(cameraPositionEnabled);
+    camera_position::Install(cameraPositionMode);
     return true;
 }
 

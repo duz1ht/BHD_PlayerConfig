@@ -80,19 +80,21 @@ int main(int argc, char** argv) {
         std::memcpy(reinterpret_cast<void*>(addresses[i]), original[i], 5);
         *reinterpret_cast<unsigned char*>(addresses[i] + 5) = 0xC3;
     }
-    if (argc == 2) {
+    const bool extrapolate = argc == 2 && std::strcmp(argv[1], "extrapolate") == 0;
+    if (argc == 2 && !extrapolate) {
         const bool signature = std::strcmp(argv[1], "signature") == 0;
         if (signature) *reinterpret_cast<unsigned char*>(addresses[2]) = 0x90;
         else { Check(std::strcmp(argv[1], "rollback") == 0); g_failWrite = true; }
-        Check(!Install(true) && !IsEnabled());
+        Check(!Install(Mode::Interpolation) && !IsEnabled());
         Check(std::memcmp(reinterpret_cast<void*>(addresses[0]), original[0], 5) == 0);
         Check(std::memcmp(reinterpret_cast<void*>(addresses[1]), original[1], 5) == 0);
         if (!signature) Check(std::memcmp(reinterpret_cast<void*>(addresses[2]), original[2], 5) == 0);
         VirtualFree(image, 0, MEM_RELEASE);
         return 0;
     }
-    Check(!Install(false) && !IsEnabled());
-    Check(Install(true) && IsEnabled() && Install(true));
+    const Mode mode = extrapolate ? Mode::Extrapolation : Mode::Interpolation;
+    Check(!Install(Mode::Disabled) && !IsEnabled());
+    Check(Install(mode) && IsEnabled() && Install(mode));
     uint32_t serial = 0;
     Check(!TryGetSimulationSerial(serial));
     const uintptr_t actor = Address(0x00840000);
@@ -114,9 +116,21 @@ int main(int argc, char** argv) {
     unsigned char actorBefore[0x29C] = {};
     std::memcpy(actorBefore, reinterpret_cast<void*>(actor), sizeof(actorBefore));
     Check(Apply(camera));
-    Check(camera[0] == 777 && camera[1] == 210 && camera[2] == 320 && camera[3] == 430);
+    const int offset = extrapolate ? 100 : -100;
+    Check(camera[0] == 777 && camera[1] == 310 + offset &&
+          camera[2] == 420 + offset && camera[3] == 530 + offset);
     Check(camera[4] == 17 && camera[5] == 18 && camera[6] == 19);
     Check(std::memcmp(actorBefore, reinterpret_cast<void*>(actor), sizeof(actorBefore)) == 0);
+    if (extrapolate) {
+        fast(11, {300, 400, 500});
+        camera[1] = 310;
+        Check(Apply(camera) && camera[1] == 310);
+        fast(12, {100, 200, 300});
+        camera[1] = 110;
+        Check(Apply(camera) && camera[1] == 10);
+        VirtualFree(image, 0, MEM_RELEASE);
+        return 0;
+    }
 
     // A non-player producer must not overwrite the player's history.
     Invoke(Address(0x004803EF), actor + 0x29C, 0);

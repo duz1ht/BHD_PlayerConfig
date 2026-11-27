@@ -25,6 +25,7 @@ constexpr DWORD kClockTimeoutMs = 250;
 
 uintptr_t g_base = 0;
 bool g_enabled = false;
+Mode g_mode = Mode::Disabled;
 bool g_attempted = false;
 PositionHistory g_history;
 struct Clock {
@@ -181,12 +182,13 @@ bool InstallHooks() {
 }
 }  // namespace
 
-bool Install(bool enabled) {
-    if (!enabled) return false;
+bool Install(Mode mode) {
+    if (mode == Mode::Disabled) return false;
     if (g_attempted) return g_enabled;
     g_attempted = true;
     g_base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
     if (g_base == 0) return false;
+    g_mode = mode;
     g_enabled = InstallHooks();
     return g_enabled;
 }
@@ -198,7 +200,8 @@ bool Apply(void* camera) {
     if (!g_clock.valid || GetTickCount() - g_clock.observedAt > kClockTimeoutMs ||
         !EngineAllowed() || !ReadPlayer(&identity, &live)) { Invalidate(); return false; }
     const uint32_t step = g_history.Producer() == Cadence::Fast ? g_clock.fastStep : g_clock.slowStep;
-    if (!g_history.GetOffset(identity, live, step, g_clock.remainder, g_clock.fastStep, &offset)) return false;
+    if (!g_history.GetOffset(identity, live, step, g_clock.remainder, g_clock.fastStep,
+                             &offset, g_mode == Mode::Extrapolation)) return false;
     auto* description = static_cast<int32_t*>(camera);
     if (!ApplyOffset({description[1], description[2], description[3]}, offset, &result)) {
         Invalidate();

@@ -3,7 +3,8 @@
 #include <cstdint>
 
 namespace camera_position {
-bool Install(bool enabled);
+enum class Mode { Disabled, Interpolation, Extrapolation };
+bool Install(Mode mode);
 bool IsEnabled();
 // Applies XYZ only to a private camera description. Never writes actor memory.
 bool Apply(void* camera);

@@ -10,9 +10,10 @@ bool Discontinuous(Position a, Position b) {
     for (int64_t d : delta) if (d > limit || d < -limit) return true;
     return false;
 }
-int32_t Offset(int32_t previous, int32_t current, uint32_t phase) {
-    const int64_t visual = previous + ((int64_t(current) - previous) * phase) / 65536;
-    return static_cast<int32_t>(visual - current);
+int32_t Offset(int32_t previous, int32_t current, uint32_t phase, bool extrapolate) {
+    const int64_t stepDelta = int64_t(current) - previous;
+    const int64_t partialStep = (stepDelta * phase) / 65536;
+    return static_cast<int32_t>(extrapolate ? partialStep : partialStep - stepDelta);
 }
 bool Fits(int64_t value) {
     return value >= std::numeric_limits<int32_t>::min() &&
@@ -64,7 +65,8 @@ void PositionHistory::Observe(const Identity& identity, Position position,
     step_ = step;
 }
 bool PositionHistory::GetOffset(const Identity& identity, Position live, uint32_t step,
-                                uint32_t remainder, uint32_t fastStep, Position* output) {
+                                uint32_t remainder, uint32_t fastStep, Position* output,
+                                bool extrapolate) {
     if (!currentValid_ || output == nullptr) return false;
     if (!(identity == identity_) || !(live == current_) || step != step_ || remainder >= 64) {
         Reset();
@@ -72,8 +74,9 @@ bool PositionHistory::GetOffset(const Identity& identity, Position live, uint32_
     }
     if (!previousValid_) return false;
     const uint32_t phase = PhaseQ16(cadence_, remainder, fastStep);
-    *output = {Offset(previous_.x, current_.x, phase), Offset(previous_.y, current_.y, phase),
-               Offset(previous_.z, current_.z, phase)};
+    *output = {Offset(previous_.x, current_.x, phase, extrapolate),
+               Offset(previous_.y, current_.y, phase, extrapolate),
+               Offset(previous_.z, current_.z, phase, extrapolate)};
     return true;
 }
 }  // namespace camera_position
