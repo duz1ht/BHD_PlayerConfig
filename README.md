@@ -57,13 +57,13 @@ that patch the same game code still require compatibility testing. Only one
 | `AllowHighResolutionFonts` | `1` | Detects the atlas dimensions of each loaded FNT0 file independently, allowing stock and higher-resolution fonts to coexist. Does not create or replace font assets. |
 | `RawMouseInput` | `1` | Uses Windows Raw Input for more reliable relative mouse input while preserving the game's sensitivity, inversion, and bindings. |
 | `HighFrequencyCamera` | `1` | Applies Raw Input movement that arrived after the latest game update to the local first-person presentation camera. Requires `RawMouseInput=1`. |
-| `HighFrequencyCameraPosition` | `1` | Interpolates on-foot first-person camera XYZ to smooth static scenery while walking/strafing. Independent of Raw Input and mouse rotation. Adds up to one movement update of visual position lag. |
-| `HighFrequencyCameraPositionExtrapolation` | `0` | Predicts the first-person camera position using the last movement step. Takes precedence over `HighFrequencyCameraPosition`. |
+| `HighFrequencyCameraPosition` | `0` | Interpolates on-foot first-person camera XYZ to smooth static scenery while walking/strafing. Independent of Raw Input and mouse rotation. Adds up to one movement update of visual position lag. |
+| `HighFrequencyCameraPositionExtrapolation` | `1` | Predicts the first-person camera position using the last movement step. Takes precedence over `HighFrequencyCameraPosition`. |
 | `HighFrequencyViewmodel` | `1` | Makes the local first-person weapon and hands follow the presentation camera, with interpolation of weapon-relative motion and bones. Requires either camera position option, or both `HighFrequencyCamera=1` and `RawMouseInput=1`. |
-| `SmoothAnimationBlendInterruptions` | `0` | Preserves the current pose and root motion when an on-foot local-player movement blend is interrupted, while retaining native blend durations when adaptive duration is disabled. |
+| `SmoothAnimationBlendInterruptions` | `1` | Preserves the current pose and root motion when an on-foot local-player movement blend is interrupted, while retaining native blend durations when adaptive duration is disabled. |
 | `AdaptiveBlendDuration` | `1` | Shortens interrupted blends according to the existing destination state weight. Requires `SmoothAnimationBlendInterruptions=1`. |
-| `RemotePlayerInterpolation` | `0` | Interpolates the on-foot third-person bodies of remote players on a multiplayer client. Adds up to 100 ms of visual delay and is independent of the camera and Raw Input options. |
-| `RemotePlayerAnimationInterpolation` | `0` | Blends the rendered skeletal poses of remote players on foot between consecutive game updates. Can run independently of `RemotePlayerInterpolation`. Adds up to one game update of pose delay (normally 16 ms). |
+| `RemotePlayerInterpolation` | `1` | Interpolates the on-foot third-person bodies of remote players on a multiplayer client. Adds up to 100 ms of visual delay and is independent of the camera and Raw Input options. |
+| `RemotePlayerAnimationInterpolation` | `1` | Blends the rendered skeletal poses of remote players on foot between consecutive game updates. Can run independently of `RemotePlayerInterpolation`. Adds up to one game update of pose delay (normally 16 ms). |
 
 `AllowHighResolutionFonts` accepts square, 32-bit FNT0 pages of 256, 512, 1024,
 2048 or 4096 pixels per side, with up to 16 equally sized pages per file. A
@@ -142,12 +142,12 @@ HUDLayoutMode=1
 AllowHighResolutionFonts=1
 RawMouseInput=1
 HighFrequencyCamera=1
-HighFrequencyCameraPosition=1
-HighFrequencyCameraPositionExtrapolation=0
-SmoothAnimationBlendInterruptions=0
+HighFrequencyCameraPosition=0
+HighFrequencyCameraPositionExtrapolation=1
+SmoothAnimationBlendInterruptions=1
 AdaptiveBlendDuration=1
-RemotePlayerInterpolation=0
-RemotePlayerAnimationInterpolation=0
+RemotePlayerInterpolation=1
+RemotePlayerAnimationInterpolation=1
 HighFrequencyViewmodel=1
 MouseScalingFix=1
 MousescaleFix=1
@@ -198,7 +198,7 @@ required for the supported version, which imports `WINMM.dll` directly.
 ### Smooth animation blend interruptions (experimental)
 
 Set `SmoothAnimationBlendInterruptions=1` in `[PatchGroups]` or enable the
-Movement checkbox in BHD Player Config before launching the game. Default: off.
+Movement checkbox in BHD Player Config before launching the game. Default: on.
 For supported on-foot local-player locomotion blends, interrupted transitions
 capture the current raw BAD pose and five root-motion/collision-bound values
 instead of restarting from the old primary animation. Target animation events
