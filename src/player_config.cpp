@@ -28,7 +28,7 @@ struct Setting {
     bool recommended;
 };
 
-constexpr std::array<Setting, 17> kSettings{{
+constexpr std::array<Setting, 18> kSettings{{
     {L"BorderlessFullscreen", L"Borderless fullscreen", L"Runs the game in a borderless window covering the monitor.", true, false},
     {L"ForceDesktopResolution", L"Force desktop resolution", L"Uses the monitor resolution while borderless mode is enabled.", true, false},
     {L"UseCorrectAspectFOV", L"Correct aspect-ratio FOV", L"Corrects first-person FOV for widescreen render resolutions.", true, true},
@@ -45,6 +45,7 @@ constexpr std::array<Setting, 17> kSettings{{
     {L"RemotePlayerInterpolation", L"Remote player interpolation (experimental)", L"Smooths the on-foot movement of remote players in multiplayer.", false, false},
     {L"RemotePlayerAnimationInterpolation", L"Remote player animation interpolation (experimental)", L"Smooths the poses of remote players on foot between game updates.", false, false},
     {L"SmoothAnimationBlendInterruptions", L"Smooth animation blend interruptions (experimental)", L"Starts interrupted movement blends from the current pose and displacement.", false, false},
+    {L"AdaptiveBlendDuration", L"Adaptive blend duration (experimental)", L"Shortens interrupted blends based on the existing target weight. Requires smooth blend interruptions.", true, false},
     {L"AllowHighResolutionFonts", L"Allow high-resolution fonts", L"Loads compatible FNT0 atlases from 256 through 4096 pixels.", true, true},
 }};
 
@@ -59,8 +60,8 @@ constexpr std::array<SettingCategory, 6> kCategories{{
     {L"Mouse && Cursor", 4, 5},
     {L"Camera && Viewmodel", 9, 4},
     {L"Multiplayer", 13, 2},
-    {L"Movement", 15, 1},
-    {L"Fonts", 16, 1},
+    {L"Movement", 15, 2},
+    {L"Fonts", 17, 1},
 }};
 
 constexpr int kCategoryTopPadding = 26;

@@ -50,6 +50,7 @@ struct PatchConfig {
     bool highFrequencyCameraPositionExtrapolation = false;
     bool highFrequencyViewmodel = true;
     bool smoothAnimationBlendInterruptions = false;
+    bool adaptiveBlendDuration = true;
     bool remotePlayerInterpolation = false;
     bool remotePlayerAnimationInterpolation = false;
     bool borderlessFullscreen = true;
@@ -291,6 +292,7 @@ PatchConfig LoadPatchConfig() {
     config.highFrequencyViewmodel = BoolFromIni(
         iniPath, L"HighFrequencyViewmodel", config.highFrequencyViewmodel);
     config.smoothAnimationBlendInterruptions = BoolFromIni(iniPath, L"SmoothAnimationBlendInterruptions", config.smoothAnimationBlendInterruptions);
+    config.adaptiveBlendDuration = BoolFromIni(iniPath, L"AdaptiveBlendDuration", config.adaptiveBlendDuration);
     config.remotePlayerInterpolation =
         BoolFromIni(iniPath, L"RemotePlayerInterpolation", config.remotePlayerInterpolation);
     config.remotePlayerAnimationInterpolation = BoolFromIni(
@@ -313,7 +315,7 @@ void ApplyBhdPatches() {
     if (imageBase != kImageBase) {
         return;
     }
-    animation_blend_fix::Install(config.smoothAnimationBlendInterruptions);
+    animation_blend_fix::Install(config.smoothAnimationBlendInterruptions, config.adaptiveBlendDuration);
     mouse_scaling_fix::Install(config.mouseScalingFix);
     remote_player_interpolation::Install(config.remotePlayerInterpolation,
                                          config.remotePlayerAnimationInterpolation);

@@ -159,7 +159,45 @@ static bool RetailRegression(const char* path){
     std::printf("PASS retail BAD: %zu bone/phase samples; %zu ordered ID pairs; 200 mixed + 600 circular + %zu special playback captures.\n",count,pairs,special);
     return true;
 }
+static bool AdaptiveRegression(){
+    const auto w=MixStates(OneState(0x24),0x2a,.5f);
+    if(!Close(w[0x24],.5f)||!Close(w[0x2a],.5f))return false;
+    PendingBlend p{};p.known=p.hadBlend=p.captured=true;p.before=w;
+    p.target=0x24;
+    if(SelectDuration(p,13)!=7||SelectDuration(p,9)!=5)return false;
+    p.target=0x28;
+    if(SelectDuration(p,13)!=13)return false;
+    p.target=0x24;p.captured=false;
+    if(SelectDuration(p,13)!=13)return false;
+    p.captured=true;p.known=false;
+    if(SelectDuration(p,13)!=13)return false;
+    p.known=true;p.hadBlend=false;
+    if(SelectDuration(p,13)!=13)return false;
+    for(int nominal:{9,13}){
+        if(AdaptiveTicks(nominal,0)!=nominal||AdaptiveTicks(nominal,1)!=1)return false;
+        for(int k=1;k<=100;++k){
+            int ticks=AdaptiveTicks(nominal,k/100.f);
+            if(ticks<1||ticks>nominal||ticks>AdaptiveTicks(nominal,(k-1)/100.f))return false;
+        }
+    }
+    constexpr uint32_t ids[]={0x24,0x2a,0x28,0x26};
+    auto weights=OneState(ids[0]);unsigned shortened=0;
+    for(unsigned i=1;i<=2000;++i){
+        p.known=p.hadBlend=p.captured=true;p.before=weights;p.target=ids[i%4];
+        int nominal=i%2?9:13;
+        int n=SelectDuration(p,nominal);
+        if(n<nominal)++shortened;
+        weights=MixStates(weights,p.target,std::min(1.f,3.f/n));
+        float sum=0;
+        for(float v:weights){if(v<0||v>1)return false;sum+=v;}
+        if(!Close(sum,1))return false;
+    }
+    if(!shortened)return false;
+    std::printf("PASS adaptive duration: 9/13-tick bounds, reversals, new targets, failed captures, 2000 circular transitions (%u shortened).\n",shortened);
+    return true;
+}
 int main(int argc,char** argv){
+    if(!AdaptiveRegression())return 13;
     if(!EndpointKeyRegression()){std::puts("FAIL: terminal key regression");return 11;}
     if(argc>1&&!RetailRegression(argv[1]))return 12;
     Frozen a,b,c,composite;

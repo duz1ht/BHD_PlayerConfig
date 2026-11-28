@@ -60,7 +60,8 @@ that patch the same game code still require compatibility testing. Only one
 | `HighFrequencyCameraPosition` | `1` | Interpolates on-foot first-person camera XYZ to smooth static scenery while walking/strafing. Independent of Raw Input and mouse rotation. Adds up to one movement update of visual position lag. |
 | `HighFrequencyCameraPositionExtrapolation` | `0` | Predicts the first-person camera position using the last movement step. Takes precedence over `HighFrequencyCameraPosition`. |
 | `HighFrequencyViewmodel` | `1` | Makes the local first-person weapon and hands follow the presentation camera, with interpolation of weapon-relative motion and bones. Requires either camera position option, or both `HighFrequencyCamera=1` and `RawMouseInput=1`. |
-| `SmoothAnimationBlendInterruptions` | `0` | Preserves the current pose and root motion when an on-foot local-player movement blend is interrupted, while retaining native blend durations. |
+| `SmoothAnimationBlendInterruptions` | `0` | Preserves the current pose and root motion when an on-foot local-player movement blend is interrupted, while retaining native blend durations when adaptive duration is disabled. |
+| `AdaptiveBlendDuration` | `1` | Shortens interrupted blends according to the existing destination state weight. Requires `SmoothAnimationBlendInterruptions=1`. |
 | `RemotePlayerInterpolation` | `0` | Interpolates the on-foot third-person bodies of remote players on a multiplayer client. Adds up to 100 ms of visual delay and is independent of the camera and Raw Input options. |
 | `RemotePlayerAnimationInterpolation` | `0` | Blends the rendered skeletal poses of remote players on foot between consecutive game updates. Can run independently of `RemotePlayerInterpolation`. Adds up to one game update of pose delay (normally 16 ms). |
 
@@ -144,6 +145,7 @@ HighFrequencyCamera=1
 HighFrequencyCameraPosition=1
 HighFrequencyCameraPositionExtrapolation=0
 SmoothAnimationBlendInterruptions=0
+AdaptiveBlendDuration=1
 RemotePlayerInterpolation=0
 RemotePlayerAnimationInterpolation=0
 HighFrequencyViewmodel=1
@@ -199,14 +201,25 @@ Set `SmoothAnimationBlendInterruptions=1` in `[PatchGroups]` or enable the
 Movement checkbox in BHD Player Config before launching the game. Default: off.
 For supported on-foot local-player locomotion blends, interrupted transitions
 capture the current raw BAD pose and five root-motion/collision-bound values
-instead of restarting from the old primary animation. Native blend durations,
-target animation events and movement integration are unchanged. The fix covers
+instead of restarting from the old primary animation. Target animation events
+and movement integration are unchanged. Native durations remain unchanged
+when adaptive blend duration is disabled. The fix covers
 all eight directions in standing run/walk, crouched and prone locomotion,
 standing/crouched/prone idles, both alternate forward runs (0x64/0x65),
 left/right rolls (0x5F/0x60) and jump start/loop (0x72/0x73).
 Native roll rotation, jump physics and queued animation completion remain
 handled by the game. Remote players, vehicles and unsupported animation
 layouts retain native behavior.
-The DLL checks both x86 call sites and native function signatures before patching.
+The DLL checks x86 call sites and native function signatures before patching.
 This option changes real movement and is experimental; test offline first and
 use consistently in multiplayer only with the server/community's approval.
+
+### Adaptive blend duration (experimental)
+
+Set `AdaptiveBlendDuration=1` in `[PatchGroups]` or use the Movement checkbox.
+Requires `SmoothAnimationBlendInterruptions=1`; otherwise it has no effect.
+For a successfully captured interruption, the native 9- or 13-tick duration
+is multiplied by (1 - existing destination-state weight), rounded to the
+nearest tick and clamped to at least one tick. Normal transitions and unknown
+state histories retain their native duration. Default: on when the parent fix
+is enabled. Test offline first.

@@ -13,6 +13,7 @@ static_assert(sizeof(void*) == 4, "DFBHD is x86");
 constexpr uintptr_t kLocalPlayer=0x0096C290, kActorPool=0x00715900;
 constexpr uintptr_t kRootCall=0x0047CB31, kPaletteCall=0x0048421F;
 constexpr uintptr_t kRoot=0x00413F30, kPalette=0x00418060;
+constexpr uintptr_t kBlendInit=0x00417F90, kBlendInitCall=0x0041405E;
 constexpr size_t kBones=19, kActorSize=0x29C;
 struct Track { uintptr_t clip; float phase, step; uint32_t flags; };
 struct State {
@@ -49,7 +50,7 @@ bool SupportedMovement(uint32_t id) {
     // Forward can be remapped to 0x64/0x65 by weapon and movement modifiers.
     // Roll left/right and jump start/loop use the same 19-channel BAD format.
     // Preserve native secondary playback, queued completion and events.
-    // Keep the native duration and destination flags for every variant.
+    // Preserve native destination flags and use native duration as the baseline.
     return id==1||id==2||id==0xd||id==0xe||
         (id>=0x24&&id<=0x43)||id==0x64||id==0x65||
         id==0x5f||id==0x60||id==0x72||id==0x73;
@@ -139,7 +140,59 @@ struct Snapshot {
     }
 };
 Snapshot g_snapshot;
-bool g_enabled=false;
+bool g_enabled=false, g_adaptive=false;
+using StateWeights=std::array<float,256>;
+StateWeights OneState(uint32_t id){
+    StateWeights result{};if(id<result.size())result[id]=1;return result;
+}
+StateWeights MixStates(const StateWeights& source,uint32_t target,float alpha){
+    StateWeights result{};alpha=std::clamp(alpha,0.f,1.f);
+    for(size_t i=0;i<result.size();++i)result[i]=source[i]*(1-alpha);
+    if(target<result.size())result[target]+=alpha;
+    return result;
+}
+int AdaptiveTicks(int nominal,float existing){
+    if(nominal<=1||!std::isfinite(existing)||existing<=0)return nominal;
+    return std::clamp(int(std::lround(nominal*(1.f-std::clamp(existing,0.f,1.f)))),1,nominal);
+}
+struct InfluenceHistory {
+    StateWeights source{};
+    uintptr_t actor=0,definition=0,identity=0,rig=0,table=0,primary=0,secondary=0;
+    State* state=nullptr;uint32_t target=0;int remaining=0;
+    bool valid=false,requiresSnapshot=false;
+    bool Matches(uintptr_t a,State* s)const{
+        return valid&&actor==a&&state==s&&target==s->id&&table==s->table&&
+            primary==s->primary.clip&&secondary==s->secondary.clip&&remaining==s->remaining&&
+            definition==Read<uintptr_t>(a+0x24)&&identity==Read<uintptr_t>(a+0x4c)&&
+            rig==Read<uintptr_t>(a+0x38)&&(!requiresSnapshot||g_snapshot.Matches(a,s));
+    }
+    void Remember(uintptr_t a,State* s,const StateWeights& base,bool frozen){
+        source=base;actor=a;state=s;target=s->id;table=s->table;
+        primary=s->primary.clip;secondary=s->secondary.clip;remaining=s->remaining;
+        definition=Read<uintptr_t>(a+0x24);identity=Read<uintptr_t>(a+0x4c);rig=Read<uintptr_t>(a+0x38);
+        requiresSnapshot=frozen;valid=true;
+    }
+};
+InfluenceHistory g_influence;
+struct PendingBlend {
+    uintptr_t actor=0;State* state=nullptr;StateWeights source{},before{};
+    bool known=false,hadBlend=false,captured=false,started=false;
+    uint32_t target=0;
+};
+thread_local PendingBlend* g_pending=nullptr;
+using BlendInit=void(__cdecl*)(State*,uintptr_t,int,uint32_t);
+int SelectDuration(const PendingBlend& p,int nominal){
+    if(!p.known||!p.hadBlend||!p.captured||p.target>=p.before.size())return nominal;
+    return AdaptiveTicks(nominal,p.before[p.target]);
+}
+void __cdecl BeginBlend(State* s,uintptr_t clip,int duration,uint32_t flags){
+    auto* p=g_pending;
+    if(g_adaptive&&p&&p->state==s&&p->actor==Read<uintptr_t>(kLocalPlayer)){
+        p->started=true;p->target=Read<uint32_t>(p->actor+0x164);
+        duration=SelectDuration(*p,duration);
+    }
+    reinterpret_cast<BlendInit>(kBlendInit)(s,clip,duration,flags);
+}
 // Snapshot raw BAD channels and five root/bounds components at the exact
 // current blend weight. Keep native discrete event ownership on the target.
 bool Capture(Frozen& dst,const Track& a,const Track& b,float w,Slerp slerp,SampleEvent sample){
@@ -163,7 +216,7 @@ bool Capture(Frozen& dst,const Track& a,const Track& b,float w,Slerp slerp,Sampl
     return true;
 }
 
-void __cdecl UpdateRoot(int32_t* output,State* s,uintptr_t actor){
+void UpdateRootImpl(int32_t* output,State* s,uintptr_t actor){
     const auto original=reinterpret_cast<Root>(kRoot);
     if(!g_enabled||actor!=Read<uintptr_t>(kLocalPlayer)){original(output,s,actor);return;}
     if(!LocalOnFoot(actor,s)){g_snapshot.valid=false;original(output,s,actor);return;}
@@ -175,6 +228,7 @@ void __cdecl UpdateRoot(int32_t* output,State* s,uintptr_t actor){
             frozen=Capture(g_snapshot.frozen,frozen?g_snapshot.frozen.Source():s->primary,
                 s->secondary,s->weight,reinterpret_cast<Slerp>(NativeSlerp),
                 reinterpret_cast<SampleEvent>(NativeEvent));
+            if(g_pending&&g_pending->state==s)g_pending->captured=frozen;
         }else frozen=false;
     }
     if(!frozen){g_snapshot.valid=false;original(output,s,actor);return;}
@@ -188,6 +242,36 @@ void __cdecl UpdateRoot(int32_t* output,State* s,uintptr_t actor){
     if(s->primary.clip==source.clip)s->primary=saved;
     if(s->secondary.clip && s->remaining>0)g_snapshot.Remember(actor,s);
     else g_snapshot.valid=false;
+}
+
+// Track logical state contributions alongside the synthetic pose; the native
+// transition initializer still sets the timer and increment before root motion.
+void __cdecl UpdateRoot(int32_t* output,State* s,uintptr_t actor){
+    if(!g_adaptive||!g_enabled||actor!=Read<uintptr_t>(kLocalPlayer)){
+        UpdateRootImpl(output,s,actor);return;
+    }
+    if(!LocalOnFoot(actor,s)){
+        g_influence.valid=false;UpdateRootImpl(output,s,actor);return;
+    }
+    PendingBlend p{};p.actor=actor;p.state=s;
+    p.hadBlend=s->secondary.clip&&s->remaining>0;
+    if(s->id<256){
+        if(!p.hadBlend){p.source=OneState(s->id);p.before=p.source;p.known=true;}
+        else if(g_influence.Matches(actor,s)&&std::isfinite(s->weight)&&s->weight>=0&&s->weight<=1.00001f){
+            p.source=g_influence.source;p.before=MixStates(p.source,s->id,s->weight);p.known=true;
+        }
+    }
+    auto* prior=g_pending;g_pending=&p;
+    UpdateRootImpl(output,s,actor);
+    g_pending=prior;
+    if(!LocalOnFoot(actor,s)||s->id>=256||!s->secondary.clip||s->remaining<=0)g_influence.valid=false;
+    else if(p.started){
+        if(p.known&&p.target==s->id&&(!p.hadBlend||p.captured))
+            g_influence.Remember(actor,s,p.before,p.captured);
+        else g_influence.valid=false;
+    }else if(p.known&&p.hadBlend)
+        g_influence.Remember(actor,s,p.source,g_snapshot.valid);
+    else g_influence.valid=false;
 }
 
 void __cdecl BuildPalette(State* s,void* output){
@@ -212,7 +296,7 @@ std::array<unsigned char,5> Call(uintptr_t site,uintptr_t target){
     std::memcpy(b.data()+1,&rel,4);return b;
 }
 } // namespace
-bool Install(bool enabled){
+bool Install(bool enabled,bool adaptive){
     if(!enabled)return false;
     if(g_enabled)return true;
     if(reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr))!=0x400000)return false;
@@ -224,11 +308,20 @@ bool Install(bool enabled){
     if(!Match(kRootCall,rootOld.data(),5)||!Match(kPaletteCall,paletteOld.data(),5)||
         !Match(kRoot,rootSig,sizeof rootSig)||!Match(kPalette,paletteSig,sizeof paletteSig)||!Match(NativeEvent,eventSig,sizeof eventSig)||
         !Match(NativeSlerp,slerpSig,sizeof slerpSig))return false;
+    const auto blendOld=Call(kBlendInitCall,kBlendInit);
+    const unsigned char blendSig[]={0x55,0x8b,0xec,0x83,0xec,0x08,0x53,0x56,0x8b,0x75,0x08,0x33,0xdb,0x3b,0xf3};
+    if(adaptive&&(!Match(kBlendInitCall,blendOld.data(),5)||!Match(kBlendInit,blendSig,sizeof blendSig)))return false;
     const auto a=Call(kRootCall,reinterpret_cast<uintptr_t>(&UpdateRoot));
     const auto b=Call(kPaletteCall,reinterpret_cast<uintptr_t>(&BuildPalette));
     if(!Write(kRootCall,a.data(),5))return false;
     if(!Write(kPaletteCall,b.data(),5)){Write(kRootCall,rootOld.data(),5);return false;}
-    g_enabled=true;return true;
+    if(adaptive){
+        const auto c=Call(kBlendInitCall,reinterpret_cast<uintptr_t>(&BeginBlend));
+        if(!Write(kBlendInitCall,c.data(),5)){
+            Write(kPaletteCall,paletteOld.data(),5);Write(kRootCall,rootOld.data(),5);return false;
+        }
+    }
+    g_adaptive=adaptive;g_enabled=true;return true;
 }
 } // namespace animation_blend_fix
 
