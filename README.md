@@ -60,6 +60,7 @@ that patch the same game code still require compatibility testing. Only one
 | `HighFrequencyCameraPosition` | `1` | Interpolates on-foot first-person camera XYZ to smooth static scenery while walking/strafing. Independent of Raw Input and mouse rotation. Adds up to one movement update of visual position lag. |
 | `HighFrequencyCameraPositionExtrapolation` | `0` | Predicts the first-person camera position using the last movement step. Takes precedence over `HighFrequencyCameraPosition`. |
 | `HighFrequencyViewmodel` | `1` | Makes the local first-person weapon and hands follow the presentation camera, with interpolation of weapon-relative motion and bones. Requires either camera position option, or both `HighFrequencyCamera=1` and `RawMouseInput=1`. |
+| `SmoothAnimationBlendInterruptions` | `0` | Preserves the current pose and root motion when an on-foot local-player movement blend is interrupted, while retaining native blend durations. |
 | `RemotePlayerInterpolation` | `0` | Interpolates the on-foot third-person bodies of remote players on a multiplayer client. Adds up to 100 ms of visual delay and is independent of the camera and Raw Input options. |
 | `RemotePlayerAnimationInterpolation` | `0` | Blends the rendered skeletal poses of remote players on foot between consecutive game updates. Can run independently of `RemotePlayerInterpolation`. Adds up to one game update of pose delay (normally 16 ms). |
 
@@ -142,6 +143,7 @@ RawMouseInput=1
 HighFrequencyCamera=1
 HighFrequencyCameraPosition=1
 HighFrequencyCameraPositionExtrapolation=0
+SmoothAnimationBlendInterruptions=0
 RemotePlayerInterpolation=0
 RemotePlayerAnimationInterpolation=0
 HighFrequencyViewmodel=1
