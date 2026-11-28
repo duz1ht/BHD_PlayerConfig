@@ -18,6 +18,7 @@
 #include "camera_position.h"
 #include "high_frequency_viewmodel.h"
 #include "remote_player_interpolation.h"
+#include "animation_blend_fix.h"
 #include "allow_high_resolution_fonts.h"
 #include "hud_layout.h"
 
@@ -48,6 +49,7 @@ struct PatchConfig {
     bool highFrequencyCameraPosition = true;
     bool highFrequencyCameraPositionExtrapolation = false;
     bool highFrequencyViewmodel = true;
+    bool smoothAnimationBlendInterruptions = false;
     bool remotePlayerInterpolation = false;
     bool remotePlayerAnimationInterpolation = false;
     bool borderlessFullscreen = true;
@@ -288,6 +290,7 @@ PatchConfig LoadPatchConfig() {
         iniPath, L"HighFrequencyCameraPositionExtrapolation", config.highFrequencyCameraPositionExtrapolation);
     config.highFrequencyViewmodel = BoolFromIni(
         iniPath, L"HighFrequencyViewmodel", config.highFrequencyViewmodel);
+    config.smoothAnimationBlendInterruptions = BoolFromIni(iniPath, L"SmoothAnimationBlendInterruptions", config.smoothAnimationBlendInterruptions);
     config.remotePlayerInterpolation =
         BoolFromIni(iniPath, L"RemotePlayerInterpolation", config.remotePlayerInterpolation);
     config.remotePlayerAnimationInterpolation = BoolFromIni(
@@ -310,6 +313,7 @@ void ApplyBhdPatches() {
     if (imageBase != kImageBase) {
         return;
     }
+    animation_blend_fix::Install(config.smoothAnimationBlendInterruptions);
     mouse_scaling_fix::Install(config.mouseScalingFix);
     remote_player_interpolation::Install(config.remotePlayerInterpolation,
                                          config.remotePlayerAnimationInterpolation);

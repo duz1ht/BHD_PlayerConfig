@@ -189,3 +189,20 @@ WinMM. `DllMain` performs no library loading, patch installation or thread waits
 An executable with different startup call sites needs explicit compatibility
 support before these patches can initialize. No executable modification is
 required for the supported version, which imports `WINMM.dll` directly.
+
+
+### Smooth animation blend interruptions (experimental)
+
+Set `SmoothAnimationBlendInterruptions=1` in `[PatchGroups]` or enable the
+Movement checkbox in BHD Player Config before launching the game. Default: off.
+For supported on-foot local-player locomotion blends, interrupted transitions
+capture the current raw BAD pose and five root-motion/collision-bound values
+instead of restarting from the old primary animation. Native blend durations,
+target animation events and movement integration are unchanged. The fix covers
+all eight directions in standing run/walk, crouched and prone locomotion,
+standing/crouched/prone idles and both alternate forward runs (0x64/0x65).
+Remote players,
+vehicles, rolls, jumps and unsupported animation layouts retain native behavior.
+The DLL checks both x86 call sites and native function signatures before patching.
+This option changes real movement and is experimental; test offline first and
+use consistently in multiplayer only with the server/community's approval.

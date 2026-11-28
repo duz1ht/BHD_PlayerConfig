@@ -9,6 +9,7 @@ add_library(winmm SHARED src/winmm_proxy.cpp src/bhd_patches.cpp src/game_window
     src/camera_position.cpp src/camera_position_math.cpp
     src/high_frequency_viewmodel.cpp src/high_frequency_viewmodel_math.cpp
     src/remote_player_interpolation.cpp
+    src/animation_blend_fix.cpp
     src/allow_high_resolution_fonts.cpp src/fnt_layout.cpp
     src/hud_layout.cpp src/hud_layout_math.cpp src/hud_overlays.cpp
     src/pixel_perfect_crosshair.cpp src/pixel_perfect_crosshair_math.cpp
@@ -52,6 +53,11 @@ file(GENERATE
 
 include(CTest)
 if(BUILD_TESTING)
+    add_executable(animation_blend_fix_test tests/animation_blend_fix_test.cpp)
+    target_compile_features(animation_blend_fix_test PRIVATE cxx_std_17)
+    target_compile_definitions(animation_blend_fix_test PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
+    add_test(NAME animation_blend_fix COMMAND animation_blend_fix_test)
+
     add_executable(cursor_clip_recovery_test tests/cursor_clip_recovery_test.cpp)
     target_compile_features(cursor_clip_recovery_test PRIVATE cxx_std_17)
     target_compile_definitions(cursor_clip_recovery_test PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
