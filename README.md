@@ -202,9 +202,11 @@ capture the current raw BAD pose and five root-motion/collision-bound values
 instead of restarting from the old primary animation. Native blend durations,
 target animation events and movement integration are unchanged. The fix covers
 all eight directions in standing run/walk, crouched and prone locomotion,
-standing/crouched/prone idles and both alternate forward runs (0x64/0x65).
-Remote players,
-vehicles, rolls, jumps and unsupported animation layouts retain native behavior.
+standing/crouched/prone idles, both alternate forward runs (0x64/0x65),
+left/right rolls (0x5F/0x60) and jump start/loop (0x72/0x73).
+Native roll rotation, jump physics and queued animation completion remain
+handled by the game. Remote players, vehicles and unsupported animation
+layouts retain native behavior.
 The DLL checks both x86 call sites and native function signatures before patching.
 This option changes real movement and is experimental; test offline first and
 use consistently in multiplayer only with the server/community's approval.

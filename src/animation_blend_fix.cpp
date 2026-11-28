@@ -43,13 +43,16 @@ bool Readable(uintptr_t p,size_t n) {
         m.State==MEM_COMMIT && !(m.Protect&(PAGE_NOACCESS|PAGE_GUARD)) &&
         n<=m.RegionSize && p-reinterpret_cast<uintptr_t>(m.BaseAddress)<=m.RegionSize-n;
 }
-bool Ordinary(uint32_t id) {
+bool SupportedMovement(uint32_t id) {
     // Native on-foot selector (0x47ca90) and DELTA01.ADM:
     // standing run/walk, crouched and prone locomotion, all eight directions.
     // Forward can be remapped to 0x64/0x65 by weapon and movement modifiers.
+    // Roll left/right and jump start/loop use the same 19-channel BAD format.
+    // Preserve native secondary playback, queued completion and events.
     // Keep the native duration and destination flags for every variant.
     return id==1||id==2||id==0xd||id==0xe||
-        (id>=0x24&&id<=0x43)||id==0x64||id==0x65;
+        (id>=0x24&&id<=0x43)||id==0x64||id==0x65||
+        id==0x5f||id==0x60||id==0x72||id==0x73;
 }
 bool LocalOnFoot(uintptr_t actor,State* state) {
     if (!actor || actor!=Read<uintptr_t>(kLocalPlayer)) return false;
@@ -168,7 +171,7 @@ void __cdecl UpdateRoot(int32_t* output,State* s,uintptr_t actor){
     if(!frozen)g_snapshot.valid=false;
     const auto requested=Read<uint32_t>(actor+0x164);
     if(requested!=s->id){
-        if(s->secondary.clip&&s->remaining>0&&Ordinary(s->id)&&Ordinary(requested)&&ValidDestination(s,requested)){
+        if(s->secondary.clip&&s->remaining>0&&SupportedMovement(s->id)&&SupportedMovement(requested)&&ValidDestination(s,requested)){
             frozen=Capture(g_snapshot.frozen,frozen?g_snapshot.frozen.Source():s->primary,
                 s->secondary,s->weight,reinterpret_cast<Slerp>(NativeSlerp),
                 reinterpret_cast<SampleEvent>(NativeEvent));

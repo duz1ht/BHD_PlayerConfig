@@ -58,12 +58,12 @@ struct RetailClip {
         if(Read<uint32_t>(base+0x14)!=kBones||!fix(0x1c)||!fix(0x40))return false;
         const auto off=Read<uintptr_t>(base+0x1c)-base;
         for(size_t i=0;i<kBones;++i)if(!fix(off+i*12+4)||!fix(off+i*12+8))return false;
-        track={base,0,0,1};return ValidTrack(track);
+        track={base,0,0,Read<uint32_t>(base+0x10)&0xffff};return ValidTrack(track);
     }
 };
 static bool RetailRegression(const char* path){
     // All unique locomotion BADs referenced by the retail ADM, including
-    // the two weapon/movement-dependent forward variants.
+    // the two weapon/movement-dependent forward variants, rolls and jumps.
     const char* names[]={
         "Dt1RunL.bad","Dt1RunR.bad","Dt1RunF.bad","Dt1RunB.bad",
         "Dt1RunFL.bad","Dt1RunBR.bad","Dt1RunFR.bad","Dt1RunBL.bad",
@@ -71,7 +71,8 @@ static bool RetailRegression(const char* path){
         "Dt1CrF.bad","Dt1CrFR.bad","Dt1CrR.bad","Dt1CrBR.bad",
         "Dt1CrB.bad","Dt1CrBL.bad","Dt1CrL.bad","Dt1CrFL.bad",
         "Dt1PrF.bad","Dt1PrR.bad","Dt1PrB.bad","Dt1PrL.bad",
-        "RunFastK.bad","RunFastW.bad"
+        "RunFastK.bad","RunFastW.bad",
+        "Dt1RollL.bad","Dt1RollR.bad","Dt1JumpS.bad","Dt1JumpL.bad"
     };
     std::array<RetailClip,std::size(names)> clips;
     size_t count=0;
@@ -96,7 +97,7 @@ static bool RetailRegression(const char* path){
         if(!Capture(current,source,b,3.f/13,TestSlerp,TestEvent))return false;
         for(int j=0;j<5;++j)if(!Close(current.events[0].v[j],old.v[j]*(10.f/13)+next.v[j]*(3.f/13)))return false;
     }
-    // Exercise all 38 logical locomotion IDs, including ADM aliases.
+    // Exercise all 42 logical movement IDs, including ADM aliases.
     struct Mapping { uint32_t id; size_t clip; };
     const Mapping states[]={
         {1,8},{2,9},{0xd,10},{0xe,11},
@@ -104,7 +105,7 @@ static bool RetailRegression(const char* path){
         {0x2c,2},{0x2d,6},{0x2e,1},{0x2f,5},{0x30,3},{0x31,7},{0x32,0},{0x33,4},
         {0x34,12},{0x35,13},{0x36,14},{0x37,15},{0x38,16},{0x39,17},{0x3a,18},{0x3b,19},
         {0x3c,20},{0x3d,21},{0x3e,21},{0x3f,21},{0x40,22},{0x41,23},{0x42,23},{0x43,23},
-        {0x64,24},{0x65,25}
+        {0x64,24},{0x65,25},{0x5f,26},{0x60,27},{0x72,28},{0x73,29}
     };
     std::array<std::array<unsigned char,0x48>,std::size(states)> entries{};
     std::array<uintptr_t,0x100> table{};
@@ -115,7 +116,7 @@ static bool RetailRegression(const char* path){
         const uintptr_t ptr=clips[m.clip].track.clip;
         std::memcpy(entries[i].data()+0x40,&ptr,4);
         table[m.id]=reinterpret_cast<uintptr_t>(entries[i].data());
-        if(!Ordinary(m.id)||!ValidDestination(&state,m.id))return false;
+        if(!SupportedMovement(m.id)||!ValidDestination(&state,m.id))return false;
     }
     size_t pairs=0;
     for(const auto& from:states)for(const auto& to:states){
@@ -139,7 +140,23 @@ static bool RetailRegression(const char* path){
             for(int j=0;j<5;++j)if(!Close(current.events[0].v[j],old.v[j]*(1-weight)+next.v[j]*weight))return false;
         }
     }
-    std::printf("PASS retail BAD: %zu bone/phase samples; %zu ordered ID pairs; 200 mixed + 600 circular interruption captures.\n",count,pairs);
+    // Native pending/completed/stopped playback of special animations.
+    // Capture must neither mutate the source/target tracks nor replay their
+    // discrete events, even near the terminal sample of a queued clip.
+    size_t special=0;
+    for(size_t i=26;i<30;++i)for(size_t j=0;j<clips.size();++j){
+        for(uint32_t flags:{0u,0x40000u,0x20000u,0x30000u}){
+            auto a=clips[j].track,b=clips[i].track;
+            a.phase=.43f;b.phase=.99999f;b.flags|=flags;
+            const Track oldA=a,oldB=b;
+            Event ea{},eb{};TestEvent(&a,&ea);TestEvent(&b,&eb);
+            if(!Capture(current,a,b,.6f,TestSlerp,TestEvent))return false;
+            if(std::memcmp(&a,&oldA,sizeof a)||std::memcmp(&b,&oldB,sizeof b)||current.events[0].mask)return false;
+            for(int k=0;k<5;++k)if(!Close(current.events[0].v[k],ea.v[k]*.4f+eb.v[k]*.6f))return false;
+            ++special;
+        }
+    }
+    std::printf("PASS retail BAD: %zu bone/phase samples; %zu ordered ID pairs; 200 mixed + 600 circular + %zu special playback captures.\n",count,pairs,special);
     return true;
 }
 int main(int argc,char** argv){
@@ -176,8 +193,9 @@ int main(int argc,char** argv){
     // Check the entire policy, not just four example IDs.
     for(uint32_t id=0;id<256;++id){
         const bool expected=id==1||id==2||id==0xd||id==0xe||
-            (id>=0x24&&id<=0x43)||id==0x64||id==0x65;
-        if(Ordinary(id)!=expected)return 10;
+            (id>=0x24&&id<=0x43)||id==0x64||id==0x65||
+        id==0x5f||id==0x60||id==0x72||id==0x73;
+        if(SupportedMovement(id)!=expected)return 10;
     }
     std::puts("PASS: captured pose/root/bounds, 100 interrupted blends, exact target endpoint, event suppression, invalid track rejection.");
     return 0;
